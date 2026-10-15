@@ -9,6 +9,7 @@ dependencies = [
  "opengdt-convert",
  "opengdt-dicom",
  "opengdt-gdt",
+ "opengdt-json",
  "opengdt-profile",
  "opengdt-store",
  "opengdt-worklist",
@@ -30,8 +31,15 @@ name = "opengdt-gdt"
 version = "0.1.0"
 
 [[package]]
+name = "opengdt-json"
+version = "0.1.0"
+
+[[package]]
 name = "opengdt-profile"
 version = "0.1.0"
+dependencies = [
+ "opengdt-json",
+]
 
 [[package]]
 name = "opengdt-store"

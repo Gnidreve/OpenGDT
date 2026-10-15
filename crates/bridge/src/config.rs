@@ -37,6 +37,13 @@ pub struct Config {
     /// Bevorzugte Transfer Syntaxes für eingehende Bilder (UIDs).
     pub storage_transfer_syntaxes: Vec<String>,
     pub archive_dir: PathBuf,
+    // Orthanc (optional): leere URL = aus
+    pub orthanc_url: String,
+    pub orthanc_user: String,
+    pub orthanc_password: String,
+    pub orthanc_poll_seconds: u64,
+    /// Beim ersten Start auch alle bereits vorhandenen Untersuchungen übernehmen.
+    pub orthanc_import_history: bool,
     pub export_dir: PathBuf,
     /// Pfadpräfix, unter dem das PVS `export_dir` sieht (z. B. `\\\\SRV\\us`).
     pub pvs_export_prefix: String,
@@ -71,6 +78,11 @@ impl Default for Config {
             match_dates: false,
             storage_transfer_syntaxes: Vec::new(),
             archive_dir: "spool/archive".into(),
+            orthanc_url: String::new(),
+            orthanc_user: String::new(),
+            orthanc_password: String::new(),
+            orthanc_poll_seconds: 2,
+            orthanc_import_history: false,
             export_dir: "spool/export".into(),
             pvs_export_prefix: String::new(),
             settle_seconds: 10,
@@ -175,6 +187,13 @@ impl Config {
                         .map(|s| parse_transfer_syntax(s).map_err(err))
                         .collect::<Result<_, _>>()?
                 }
+                "orthanc_url" => c.orthanc_url = v.into(),
+                "orthanc_user" => c.orthanc_user = v.into(),
+                "orthanc_password" => c.orthanc_password = v.into(),
+                "orthanc_poll_seconds" => c.orthanc_poll_seconds = parse_num(v).map_err(err)?,
+                "orthanc_import_history" => {
+                    c.orthanc_import_history = parse_bool(v).map_err(err)?
+                }
                 "archive_dir" => c.archive_dir = v.into(),
                 "export_dir" => c.export_dir = v.into(),
                 "pvs_export_prefix" => c.pvs_export_prefix = v.into(),
@@ -193,6 +212,12 @@ impl Config {
         }
         if self.station_ae.len() > 16 {
             return Err("station_ae darf höchstens 16 Zeichen lang sein".into());
+        }
+        if !self.orthanc_url.is_empty() {
+            crate::http::parse_base(&self.orthanc_url).map_err(|e| format!("orthanc_url: {e}"))?;
+            if self.orthanc_poll_seconds == 0 {
+                return Err("orthanc_poll_seconds muss mindestens 1 sein".into());
+            }
         }
         if self.gdt_import_dir == self.gdt_export_dir {
             return Err(
@@ -220,6 +245,21 @@ mod tests {
         assert!(c.strict_called_ae);
         assert_eq!(c.gdt_charset, Charset::Cp437);
         assert_eq!(c.utc_offset_minutes, -60);
+    }
+
+    #[test]
+    fn orthanc_settings() {
+        let c = Config::parse("orthanc_url = http://orthanc:8042\northanc_user = u\northanc_password = p\northanc_poll_seconds = 5").unwrap();
+        assert_eq!(
+            (c.orthanc_url.as_str(), c.orthanc_poll_seconds),
+            ("http://orthanc:8042", 5)
+        );
+        assert!(
+            Config::default().orthanc_url.is_empty(),
+            "standardmäßig aus"
+        );
+        assert!(Config::parse("orthanc_url = https://x").is_err());
+        assert!(Config::parse("orthanc_url = http://x\northanc_poll_seconds = 0").is_err());
     }
 
     #[test]

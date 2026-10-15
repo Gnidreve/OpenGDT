@@ -1,0 +1,8 @@
+target
+.git
+data
+tests
+devices
+concept
+**/*.md
+!docker/**

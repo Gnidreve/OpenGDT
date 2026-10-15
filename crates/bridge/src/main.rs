@@ -16,7 +16,13 @@ Verwendung:
 
 fn load_config(path: Option<&String>) -> Result<Config, String> {
     let path = path.map(String::as_str).unwrap_or("opengdt.conf");
-    let text = std::fs::read_to_string(path).map_err(|e| format!("{path}: {e}"))?;
+    let mut text = std::fs::read_to_string(path).map_err(|e| format!("{path}: {e}"))?;
+    // Umgebungsvariablen `OPENGDT_<SCHLÜSSEL>` überschreiben die Datei (praktisch für Docker).
+    for (k, v) in std::env::vars() {
+        if let Some(key) = k.strip_prefix("OPENGDT_") {
+            text.push_str(&format!("\n{} = {v}", key.to_ascii_lowercase()));
+        }
+    }
     Config::parse(&text).map_err(|e| format!("{path}: {e}"))
 }
 

@@ -1,0 +1,8 @@
+[package]
+name = "opengdt-json"
+description = "Minimaler JSON-Parser (RFC 8259), std-only"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]

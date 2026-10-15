@@ -3,7 +3,7 @@
 * **Nur `std`.** Kein neues `[dependencies]`-Eintrag außer Pfad-Abhängigkeiten auf
   Schwester-Crates. Braucht etwas ein externes Crate, ist das eine Entscheidung des
   Nutzers – Rückfrage statt Einbau.
-* Abhängigkeitsrichtung: `bridge → {worklist, store, convert, gdt, dicom}`,
+* Abhängigkeitsrichtung: `bridge → {worklist, store, convert, gdt, dicom, json}`, `profile → json`,
   `worklist/store/convert → dicom`, `worklist → gdt`. `gdt` und `dicom` kennen sich nicht.
   Keine Zyklen, `bridge` ist das einzige Crate mit Orchestrierungslogik.
 * Neues Crate: Ordner + `Cargo.toml` + `README.md` + `CLAUDE.md`, Eintrag in der Workspace-

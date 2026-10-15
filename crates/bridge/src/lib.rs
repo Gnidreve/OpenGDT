@@ -2,7 +2,9 @@
 
 pub mod config;
 pub mod handler;
+pub mod http;
 pub mod log;
+pub mod orthanc;
 pub mod pipeline;
 pub mod watcher;
 
@@ -61,7 +63,7 @@ pub fn start(cfg: Config) -> Result<Running, String> {
     let handler = Arc::new(BridgeHandler {
         cfg: cfg.clone(),
         worklist: worklist.clone(),
-        archive,
+        archive: archive.clone(),
         pipeline: pipeline.clone(),
     });
     let server = Server::bind(
@@ -110,6 +112,18 @@ pub fn start(cfg: Config) -> Result<Running, String> {
                 sleep_unless(&stop, Duration::from_secs(1));
             }
         }));
+    }
+    if !cfg.orthanc_url.is_empty() {
+        let mut poller = orthanc::Poller::new(&cfg, archive, pipeline.clone())?;
+        let stop = stop.clone();
+        let every = Duration::from_secs(cfg.orthanc_poll_seconds);
+        threads.push(std::thread::spawn(move || {
+            while !stop.load(Ordering::Relaxed) {
+                poller.poll_once();
+                sleep_unless(&stop, every);
+            }
+        }));
+        info!("Orthanc-Anbindung aktiv: {}", cfg.orthanc_url);
     }
     info!("DICOM-Server '{}' lauscht auf {dicom_addr}", cfg.ae_title);
     Ok(Running {

@@ -305,3 +305,69 @@ fn storage_commitment_is_not_supported_and_must_be_disabled_on_the_device() {
     r.shutdown();
     let _ = fs::remove_dir_all(root);
 }
+
+/// Dieselbe Geräteabfrage gegen einen **externen** Worklist-Server (z. B. Orthanc), falls
+/// `OPENGDT_EXTERNAL_MWL=host:port` gesetzt ist (`tests/orthanc/run.sh` tut das). Sonst übersprungen.
+/// Optional: `OPENGDT_EXTERNAL_MWL_AE` (Standard ORTHANC), `OPENGDT_STATION_AE` (Standard MINDRAY),
+/// `OPENGDT_QUERY_DATE` (YYYYMMDD; ohne Angabe wird nicht nach Datum gefragt).
+#[test]
+fn device_query_against_external_worklist_server() {
+    let Ok(addr) = std::env::var("OPENGDT_EXTERNAL_MWL") else {
+        eprintln!("übersprungen: OPENGDT_EXTERNAL_MWL nicht gesetzt");
+        return;
+    };
+    let p = profile();
+    let called = std::env::var("OPENGDT_EXTERNAL_MWL_AE").unwrap_or_else(|_| "ORTHANC".into());
+    let station = std::env::var("OPENGDT_STATION_AE").unwrap_or_else(|_| "MINDRAY".into());
+    let date = std::env::var("OPENGDT_QUERY_DATE").unwrap_or_default();
+    let cfg = ScuConfig {
+        calling_ae: station.clone(),
+        called_ae: called,
+        timeout: Duration::from_secs(10),
+    };
+    let ts = p.worklist_transfer_syntaxes();
+    let mut a = connect(addr.as_str(), &cfg, &[(uid::MWL_FIND, &ids(&ts))]).unwrap();
+
+    // 1. Volle Standardabfrage des Geräts
+    let o = HashMap::from([
+        ((0x0040, 0x0001), station.clone()),
+        ((0x0040, 0x0002), date.clone()),
+    ]);
+    let (status, m) = a.find(&build_query(&p.worklist_keys(), &o)).unwrap();
+    assert_eq!(status, 0, "Statuscode des Servers");
+    assert!(!m.is_empty(), "externer Server liefert keinen Treffer – Worklist-Eintrag vorhanden? Station-AE/Datum passend?");
+    let w = &m[0];
+    assert_eq!(w.get_str(Tag(0x0010, 0x0020)).as_deref(), Some("4711"));
+    assert_eq!(
+        w.get_str(Tag(0x0010, 0x0010)).as_deref(),
+        Some("Müller^Jürgen")
+    );
+    assert!(
+        w.get_str(Tag(0x0020, 0x000D)).is_some(),
+        "Study Instance UID fehlt"
+    );
+    assert!(
+        w.get_str(Tag(0x0008, 0x0050)).is_some(),
+        "Accession Number fehlt"
+    );
+    a.release().unwrap();
+
+    // 2. Jeder Schlüssel einzeln, in beiden Kodierungen
+    for implicit_only in [true, false] {
+        let proposed: Vec<&str> = if implicit_only {
+            vec![uid::IMPLICIT_VR_LE]
+        } else {
+            ids(&ts)
+        };
+        let mut a = connect(addr.as_str(), &cfg, &[(uid::MWL_FIND, &proposed)]).unwrap();
+        for k in p.worklist_keys() {
+            if k.fixed_value.is_some() {
+                continue;
+            }
+            let q = build_query(std::slice::from_ref(&k), &HashMap::new());
+            let (status, m) = a.find(&q).unwrap();
+            assert!(status == 0 && !m.is_empty(), "Schlüssel {} {:04X},{:04X} (implicit={implicit_only}): status={status:#06x}, Treffer={}", k.name, k.tag.0, k.tag.1, m.len());
+        }
+        a.release().unwrap();
+    }
+}

@@ -34,7 +34,15 @@ PVS getestet.**
 **Nicht in einer Praxis einsetzen**, bevor Satzarten/Feldkennungen mit dem Ziel-PVS abgestimmt,
 ein Rauchtest am Gerät gelaufen und die MDR-Frage geklärt ist.
 
-## Schnellstart
+## Schnellstart mit Docker (Orthanc + Bridge, ein Befehl)
+
+```sh
+cp .env.example .env && docker compose up -d --build && docker/smoke.sh
+```
+
+Einstellungen am Ultraschallgerät, Ordner, Fehlersuche und was getestet ist: [`docker/README.md`](docker/README.md).
+
+## Schnellstart ohne Docker (nur die Bridge)
 
 ```sh
 cargo build --release
@@ -64,9 +72,12 @@ crates/
   store/            Archiv der empfangenen Instanzen
   convert/          DICOM-Pixeldaten → Dateien fürs PVS
   bridge/           Binary: Konfiguration, Watcher, Pipeline, CLI
+  json/             Minimaler JSON-Parser
   profile/          Geräteprofile lesen und validieren (Testgrundlage)
 devices/            Gerätewissen (z. B. Mindray DP-70/DP-50) als JSON-Profil; die Tests laufen darüber
+docker/             Compose-Stack (Orthanc + Bridge): Konfiguration, Testdaten, Smoke-Test
 tests/interop/      Optionaler Test gegen pynetdicom (Python, nur Dev)
+tests/orthanc/      Optionaler Test gegen ein echtes Orthanc
 ```
 
 ## Entwickeln

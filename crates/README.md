@@ -18,6 +18,7 @@ dicom ──┬─ worklist ├──▶ bridge  (Binary + Orchestrierung)
 | [`store`](store/README.md) | Archiv für empfangene Instanzen |
 | [`convert`](convert/README.md) | DICOM-Pixeldaten → JPEG/MP4/PNG/PDF |
 | [`bridge`](bridge/README.md) | Konfiguration, Watcher, Pipeline, CLI |
+| [`json`](json/README.md) | Minimaler JSON-Parser (Geräteprofile, Orthanc-REST) |
 | [`profile`](profile/README.md) | Geräteprofile (JSON-Abschrift von Herstellerdokumenten), Validierung; nur für Tests |
 
 Befehle (im Repository-Wurzelordner): `cargo build --workspace`, `cargo test --workspace`,

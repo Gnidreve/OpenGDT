@@ -15,6 +15,7 @@ opengdt-dicom = { path = "../dicom" }
 opengdt-worklist = { path = "../worklist" }
 opengdt-store = { path = "../store" }
 opengdt-convert = { path = "../convert" }
+opengdt-json = { path = "../json" }
 
 [lib]
 name = "opengdt_bridge"

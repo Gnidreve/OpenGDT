@@ -1,0 +1,29 @@
+{
+  "Name": "OpenGDT-Orthanc",
+
+  "StorageDirectory": "/var/lib/orthanc/db",
+  "IndexDirectory": "/var/lib/orthanc/db",
+  "StorageCompression": false,
+
+  "HttpPort": 8042,
+  "RemoteAccessAllowed": true,
+  "AuthenticationEnabled": false,
+
+  "DicomAet": "ORTHANC",
+  "DicomPort": 4242,
+  "DicomCheckCalledAet": false,
+  "DicomAlwaysAllowEcho": true,
+  "DicomAlwaysAllowStore": true,
+  "DicomAlwaysAllowFind": false,
+  "DicomAlwaysAllowFindWorklist": true,
+
+  "StableAge": 5,
+
+  "Plugins": ["/usr/local/share/orthanc/plugins/libModalityWorklists.so"],
+  "Worklists": {
+    "Enable": true,
+    "Database": "/worklists",
+    "FilterIssuerAet": false,
+    "LimitAnswers": 0
+  }
+}

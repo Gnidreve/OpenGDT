@@ -1,5 +1,5 @@
-//! Minimaler JSON-Parser (RFC 8259) auf `std`-Basis. Reicht für Profildateien;
-//! kein Serialisieren, keine Streaming-API.
+//! Minimaler JSON-Parser (RFC 8259) auf `std`-Basis. Reicht für Profildateien und die
+//! Orthanc-REST-Antworten; kein Serialisieren, keine Streaming-API.
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Json {

@@ -18,7 +18,8 @@ DICOM-Worklist; DICOM-Bilder → JPEG/MP4/PNG/PDF-Dateien + GDT-Rückmeldung.
    (z. B. `tests/interop`) sind erlaubt, solange sie das Projekt nicht berühren.
 3. **Verifizieren vor „fertig“:** `cargo fmt --all`, `cargo clippy --workspace --all-targets`
    (warnungsfrei), `cargo test --workspace`; bei Änderungen an DICOM/GDT-Ausgabe zusätzlich
-   `tests/interop/run.sh`. Coverage-Stand (Zeilen, gesamt): ~95 %; übrig sind im Kern reine I/O-Fehlerzweige
+   `tests/interop/run.sh`; bei Änderungen am Orthanc-Anschluss oder am Stack zusätzlich `tests/orthanc/run.sh` und `docker/smoke.sh`.
+   Coverage-Stand (Zeilen, gesamt): ~95 %; übrig sind im Kern reine I/O-Fehlerzweige
    (`accept()`-Fehler in `dicom/scp.rs`, Schreibfehler-Fortsetzungen, `bridge/watcher.rs`).
 4. **Ehrlichkeit über Spezifikationslücken:** Was nicht gegen die offizielle Spezifikation
    geprüft ist, steht als „Ungeprüft“ in der CLAUDE.md des Crates (aktuell `crates/gdt`).
@@ -31,6 +32,8 @@ DICOM-Worklist; DICOM-Bilder → JPEG/MP4/PNG/PDF-Dateien + GDT-Rückmeldung.
 * [`concept/`](concept/README.md) – Konzeptpapier (Warum, Architektur, Risiken)
 * [`crates/`](crates/README.md) – Code (Workspace)
 * [`devices/`](devices/README.md) – Gerätedaten aus Herstellerdokumenten (Pilot: Mindray DP-50)
+* [`docker/`](docker/README.md) – Compose-Stack (Orthanc + Bridge), PVS (GNUmed) liegt außerhalb und tauscht GDT-Dateien über `./data`
+* [`tests/orthanc/`](tests/orthanc/README.md) – Test gegen ein echtes Orthanc
 * [`tests/interop/`](tests/interop/README.md) – Interop-Test gegen pynetdicom
 
 ## Offene Entscheidungen (beim Nutzer)

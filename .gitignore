@@ -2,3 +2,5 @@
 /spool
 /out
 *.log
+/data
+.env

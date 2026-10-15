@@ -37,3 +37,10 @@ export_dir = spool/export       # konvertierte Dateien für das PVS
 pvs_export_prefix =             # Pfad, unter dem das PVS export_dir sieht, z. B. \\SRV\ultraschall
 settle_seconds = 10             # Ruhezeit nach dem letzten Bild, bevor zurückgemeldet wird
 multiframe = video             # Cine-Clips: video (AVI) | first (nur erstes Bild) | all (alle Bilder einzeln)
+
+# ---- Orthanc (optional) --------------------------------------------------
+orthanc_url =                   # z. B. http://orthanc:8042; leer = aus. Bilder, die Orthanc empfängt, übernimmt die Bridge per REST
+orthanc_user =                  # nur bei aktivierter Orthanc-Authentifizierung
+orthanc_password =
+orthanc_poll_seconds = 2        # Abfrageintervall
+orthanc_import_history = false  # true: beim allerersten Start auch alle schon vorhandenen Untersuchungen übernehmen

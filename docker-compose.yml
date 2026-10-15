@@ -1,0 +1,61 @@
+# Kompletter Entwicklungs-/Teststack:  docker compose up -d --build
+#
+#   Ultraschall (DP-50) ──DICOM──▶ orthanc :4242   Worklist (Plugin) + Bildempfang
+#   PVS (GNUmed, auf dem Host) ◀─GDT-Dateien─▶ ./data/gdt-in, ./data/gdt-out ◀──▶ bridge
+#   bridge ──REST──▶ orthanc :8042   (holt fertige Untersuchungen, schreibt Bilder + GDT-Rückmeldung)
+#
+# Einstellungen (alle optional) in der Datei .env, Vorlage: .env.example
+name: opengdt
+
+services:
+  # Legt die Datenordner mit den richtigen Besitzrechten an (einmalig, endet danach).
+  init:
+    image: ${RUNTIME_IMAGE:-debian:bookworm-slim}
+    user: "0:0"
+    command: >
+      sh -c "mkdir -p /data/gdt-in /data/gdt-out /data/export /data/archive /data/worklists &&
+             chown -R ${PUID:-1000}:${PGID:-1000} /data"
+    volumes:
+      - ./data:/data
+    restart: "no"
+
+  orthanc:
+    image: ${ORTHANC_IMAGE:-jodogne/orthanc-plugins:latest}
+    restart: unless-stopped
+    depends_on:
+      init:
+        condition: service_completed_successfully
+    ports:
+      - "4242:4242"            # DICOM: hier verbindet sich das Ultraschallgerät
+      - "127.0.0.1:8042:8042"  # Weboberfläche/REST nur lokal (http://localhost:8042)
+    volumes:
+      - ./docker/orthanc/orthanc.json:/etc/orthanc/orthanc.json:ro
+      - orthanc-db:/var/lib/orthanc/db
+      - ./data/worklists:/worklists:ro
+
+  bridge:
+    build:
+      context: .
+      args:
+        RUST_IMAGE: ${RUST_IMAGE:-rust:1-slim-bookworm}
+        RUNTIME_IMAGE: ${RUNTIME_IMAGE:-debian:bookworm-slim}
+    image: opengdt-bridge:local
+    restart: unless-stopped
+    user: "${PUID:-1000}:${PGID:-1000}"
+    depends_on:
+      init:
+        condition: service_completed_successfully
+      orthanc:
+        condition: service_started
+    ports:
+      - "11112:11112"          # eigener DICOM-Listener der Bridge (Alternative zu Orthanc, siehe docker/README.md)
+    environment:
+      OPENGDT_UTC_OFFSET_MINUTES: ${UTC_OFFSET_MINUTES:-60}
+      OPENGDT_STATION_AE: ${DEVICE_AE:-}
+      OPENGDT_PVS_EXPORT_PREFIX: ${PVS_EXPORT_PREFIX:-/data/export}
+      OPENGDT_GDT_RESULT_FILENAME: ${GDT_RESULT_FILENAME:-}
+    volumes:
+      - ./data:/data
+
+volumes:
+  orthanc-db:

@@ -2,7 +2,7 @@
 
 Aufruf: interop.py ARBEITSVERZEICHNIS   (siehe run.sh, das alles vorbereitet)
 """
-import io, sys, time, glob
+import io, os, sys, time, glob
 from pydicom.dataset import Dataset, FileMetaDataset
 from pydicom.uid import generate_uid, ExplicitVRLittleEndian, JPEGBaseline8Bit, ImplicitVRLittleEndian
 from pydicom.encaps import encapsulate
@@ -21,7 +21,13 @@ for ts in (JPEGBaseline8Bit, ExplicitVRLittleEndian, ImplicitVRLittleEndian):
 for ts in (JPEGBaseline8Bit, ExplicitVRLittleEndian):
     ae.add_requested_context(UltrasoundMultiFrameImageStorage, [ts])
 
-assoc = ae.associate("127.0.0.1", 11112, ae_title="OPENGDT")
+# Ziel ist normalerweise die Bridge selbst; tests/orthanc/run.sh richtet es per Umgebung auf Orthanc aus.
+PORT = int(os.environ.get("OPENGDT_DICOM_PORT", "11112"))
+CALLED = os.environ.get("OPENGDT_DICOM_AE", "OPENGDT")
+assoc = ae.associate("127.0.0.1", PORT, ae_title=CALLED)
+# Worklist kann an einem anderen Server abgefragt werden als der Bildversand (z. B. Worklist → Bridge, Bilder → Orthanc)
+WL_PORT = int(os.environ.get("OPENGDT_WORKLIST_PORT", PORT))
+WL_CALLED = os.environ.get("OPENGDT_WORKLIST_AE", CALLED)
 assert assoc.is_established, "Association fehlgeschlagen"
 st = assoc.send_c_echo()
 print("ECHO", st.Status)
@@ -42,10 +48,14 @@ sps.ScheduledProcedureStepStartDate = ""
 sps.ScheduledProcedureStepStartTime = ""
 q.ScheduledProcedureStepSequence = [sps]
 results = []
-for status, ident in assoc.send_c_find(q, ModalityWorklistInformationFind):
+wl = assoc if (WL_PORT, WL_CALLED) == (PORT, CALLED) else ae.associate("127.0.0.1", WL_PORT, ae_title=WL_CALLED)
+assert wl.is_established, "Worklist-Association fehlgeschlagen"
+for status, ident in wl.send_c_find(q, ModalityWorklistInformationFind):
     print("FIND status", hex(status.Status) if status else None)
     if status.Status in (0xFF00, 0xFF01):
         results.append(ident)
+if wl is not assoc:
+    wl.release()
 print("FIND matches:", len(results))
 assert len(results) == 1, results
 w = results[0]

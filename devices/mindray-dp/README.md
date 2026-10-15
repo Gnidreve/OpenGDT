@@ -43,6 +43,8 @@ Study Instance UID kommen **aus der Worklist** (oder per Hand – siehe Risiko u
    gewertet. Sequenzen werden jetzt am Item-Marker erkannt.
 
 ### Einstellungen am Gerät (Checkliste)
+Für den Docker-Stack gilt die Tabelle in [`docker/README.md`](../../docker/README.md): **Worklist → Bridge (Port 11112), Storage → Orthanc (Port 4242)**.
+Grund: Orthancs Worklist-Plugin liefert nur bei exakt passendem Station-AE-Titel; das DP-50 fragt standardmäßig mit seinem eigenen (gegen Orthanc 1.12 geprüft).
 * **Worklist-SCP** = Bridge (Host, Port `11112`, AE-Titel der Bridge). Station-AE-Schlüssel braucht
   keine Anpassung: Ist `station_ae` nicht konfiguriert, ignoriert die Bridge ihn.
 * **Storage-SCP** = Bridge. **Compression Mode** bewusst wählen (siehe nächster Punkt).

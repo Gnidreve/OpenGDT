@@ -5,10 +5,13 @@
 //! Wird die JSON-Datei neu aus einer neueren Fassung des Dokuments erzeugt,
 //! prüfen die Tests automatisch gegen den neuen Stand.
 
-pub mod json;
 mod profile;
 
-pub use json::Json;
+/// Der JSON-Parser lebt im Crate `opengdt-json`; hier nur zur Bequemlichkeit re-exportiert.
+pub mod json {
+    pub use opengdt_json::*;
+}
+pub use opengdt_json::Json;
 pub use profile::{Key, Meta, Profile, SopClass, StorageContext, TransferSyntax};
 
 /// Schema-Kennung, die `meta.schema` tragen muss.
