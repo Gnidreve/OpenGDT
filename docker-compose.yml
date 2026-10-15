@@ -25,6 +25,7 @@ services:
       - ./docker/orthanc/orthanc.json:/static/orthanc.json:ro
       - orthanc-config:/config
       - bridge-secrets:/bridge-secrets
+      - gnumed-secrets:/gnumed-secrets
     restart: "no"
 
   orthanc:
@@ -76,6 +77,43 @@ services:
       - ./data:/data
       - bridge-secrets:/secrets:ro
 
+  # GNUmed-Datenbank (PostgreSQL 15; der GNUmed-Client auf dem Pi verbindet sich mit localhost:5432). Der Bootstrap-Schritt
+  # darunter legt beim ersten Start das Schema an (einige Minuten) und tut danach nichts mehr. Zurücksetzen: docker compose down -v
+  gnumed-db:
+    image: ${GNUMED_DB_IMAGE:-postgres:15}               # nicht 16: der GNUmed-22-Bootstrap läuft dort nicht (geprüft)
+    restart: unless-stopped
+    depends_on:
+      init:
+        condition: service_completed_successfully
+    environment:
+      POSTGRES_PASSWORD_FILE: /secrets/postgres-password
+      POSTGRES_INITDB_ARGS: --locale=C.UTF-8 --encoding=UTF8
+    ports:
+      - "127.0.0.1:5432:5432"                             # nur auf dem Pi selbst (GNUmed-Client)
+    volumes:
+      - gnumed-db:/var/lib/postgresql/data
+      - gnumed-secrets:/secrets:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+  gnumed-bootstrap:
+    build:
+      context: ./docker/gnumed
+      args:
+        BASE_IMAGE: ${GNUMED_BASE_IMAGE:-ubuntu:24.04}
+    image: opengdt-gnumed-bootstrap:local
+    depends_on:
+      gnumed-db:
+        condition: service_healthy
+    environment:
+      PGHOST: gnumed-db
+    volumes:
+      - gnumed-secrets:/secrets:ro
+    restart: "no"
+
   # Gibt nach dem Start alle Zugangs-/Verbindungsdaten aus (siehe docker/banner.sh) und endet danach.
   info:
     image: ${RUNTIME_IMAGE:-debian:bookworm-slim}
@@ -89,14 +127,19 @@ services:
     volumes:
       - ./docker/banner.sh:/banner.sh:ro
       - orthanc-config:/config:ro
+      - gnumed-secrets:/gnumed-secrets:ro
     depends_on:
       orthanc:
         condition: service_started
       bridge:
         condition: service_healthy
+      gnumed-bootstrap:
+        condition: service_completed_successfully
     restart: "no"
 
 volumes:
   orthanc-db:
   orthanc-config:
   bridge-secrets:
+  gnumed-db:
+  gnumed-secrets:

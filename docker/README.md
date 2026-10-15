@@ -1,7 +1,8 @@
 # Docker-Stack (Entwicklung / Test)
 
-Ein Befehl startet alles und verdrahtet es: **Orthanc** (DICOM-Server, Bildspeicher) und die **OpenGDT-Bridge**.
-Das **PVS (GNUmed) läuft nicht im Stack**, sondern auf dem Host und tauscht GDT-Dateien über den Ordner `./data` aus.
+Ein Befehl startet alles und verdrahtet es: **Orthanc** (DICOM-Server, Bildspeicher), die **OpenGDT-Bridge** und die **GNUmed-Datenbank**
+(PostgreSQL). Der **GNUmed-Client läuft nicht im Stack**, sondern direkt auf dem Pi: er verbindet sich mit der Datenbank auf `localhost:5432`
+und tauscht GDT-Dateien über den Ordner `./data` aus.
 
 ```
 Ultraschall DP-50 ──Worklist (DICOM :11112)──────────────▶ bridge ◀──GDT-Dateien──▶ PVS (GNUmed, auf dem Pi)
@@ -127,20 +128,25 @@ GDT-Rückmeldung, AVI-Export; die Abfrage des DP-50 aus dem Conformance Statemen
 **Nicht getestet:**
 * **Raspberry Pi / arm64.** `orthancteam/orthanc:latest` hat laut Registry-Manifest ein arm64-Image; **gelaufen ist es nur auf
   x86_64**. Die Bridge wird auf dem Pi selbst gebaut (erster Build dauert dort einige Minuten).
-* **Das echte DP-50**, **GNUmed** (siehe unten) und die Sommerzeit-Umstellung.
+* **Das echte DP-50**, **der GNUmed-Client** (siehe unten), **das Bauen des Bootstrap-Images auf arm64** und die Sommerzeit-Umstellung.
 
-## GNUmed und die Zugangsdaten
+## GNUmed-Datenbank im Stack
 
-GNUmed gehört **nicht** zum Stack und hat **keine** Verbindung zu den Orthanc-Zugangsdaten. Nach dem, was sich recherchieren ließ
-(Debian-Paketdokumentation, nicht selbst ausprobiert):
-
-* GNUmed ist ein Desktop-Programm (der Client) und hat selbst **keinen Server-Port**. Es verbindet sich mit einer **PostgreSQL-Datenbank**,
-  Standardport **5432** (bei anderem Port setzt man `GM_DB_PORT`). Die Datenbank legt `gm-bootstrap_server` an (**Achtung:** löscht
-  vorhandene GNUmed-Datenbanken). Quelle: [README.Debian des Pakets gnumed-server](https://metadata.ftp-master.debian.org/changelogs/main/g/gnumed-server/gnumed-server_22.33-1_README.Debian).
-* Angemeldet wird im Client mit einem GNUmed-Benutzer; in älteren Anleitungen ist das Standardkonto `any-doc` (siehe
-  [diese Anleitung](https://www.ghacks.net/?p=18370)) – ob das für die aktuelle Version noch gilt, ist ungeprüft. Maßgeblich ist die
-  GNUmed-Dokumentation.
-* Es gibt keine Überschneidung mit den Ports des Stacks (`80`, `4242`, `11112` – PostgreSQL liegt auf `5432`).
+* Dienst `gnumed-db`: PostgreSQL **15** (nicht 16: der Bootstrap von GNUmed 22 bricht dort ab, geprüft), erreichbar **nur** auf dem Pi unter
+  `localhost:5432`. Dienst `gnumed-bootstrap`: legt beim **ersten Start** die Datenbank `gnumed_v22` an und tut danach nichts mehr
+  (Meldung „nichts zu tun“). Der erste Aufbau dauert mehrere Minuten (hier auf x86_64 gut 4; auf dem Pi länger, **nicht gemessen**), weil das
+  Schema von Version 2 bis 22 aufgebaut wird. Der Infoblock erscheint deshalb beim ersten Start erst danach; der Fortschritt steht im Log.
+* Die Daten liegen im Volume `gnumed-db` und überleben `docker compose down`; `down -v` löscht sie. Ein abgebrochener Aufbau wird beim
+  nächsten Start automatisch neu gemacht (Marker `opengdt-bootstrap-fertig` am Datenbankkommentar).
+* Client und Datenbank müssen zusammenpassen: Datenbank **v22** gehört zum GNUmed-Client **1.8.x**. Welche Version auf dem Pi installiert wird,
+  ist ungeprüft – bei einer anderen Hauptversion meldet der Client einen Versionskonflikt.
+* Zugang: Datenbank `gnumed_v22`, Host `localhost`, Port `5432`. Benutzer **`any-doc`**, Passwort **`any-doc`** (Paketvorgabe, am Datenbankserver
+  getestet; die Anmeldung im Client selbst ist ungetestet). Der Datenbank-Eigentümer `gm-dbo` hat ein **erzeugtes** Passwort (steht im
+  Infoblock; die Paketvorgabe `gm-dbo` wird abgelehnt). Der Postgres-Administrator hat ein erzeugtes Passwort, das nur im Volume `gnumed-secrets` liegt.
+* Das GNUmed-Paket legt **synthetische Testpatienten** an; die Update-Skripte setzen sie voraus (ohne sie bricht der Aufbau ab, geprüft).
+* Quellen: [README.Debian des Pakets gnumed-server](https://metadata.ftp-master.debian.org/changelogs/main/g/gnumed-server/gnumed-server_22.33-1_README.Debian),
+  außerdem das entpackte Paket `gnumed-server` 22.28 (Ubuntu 24.04), aus dem das Image gebaut wird (amd64 + arm64).
+* Keine Verbindung zu den Orthanc-Zugangsdaten. Ports: `80` (Orthanc), `4242`, `11112` (DICOM), `5432` (GNUmed-Datenbank).
 
 ## GNUmed – offene Punkte
 

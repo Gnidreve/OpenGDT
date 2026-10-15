@@ -35,7 +35,7 @@ DICOM-Worklist; DICOM-Bilder → JPEG/MP4/PNG/PDF-Dateien + GDT-Rückmeldung.
 * [`concept/`](concept/README.md) – Konzeptpapier (Warum, Architektur, Risiken)
 * [`crates/`](crates/README.md) – Code (Workspace)
 * [`devices/`](devices/README.md) – Gerätedaten aus Herstellerdokumenten (Pilot: Mindray DP-50)
-* [`docker/`](docker/README.md) – Compose-Stack (Orthanc + Bridge), PVS (GNUmed) liegt außerhalb und tauscht GDT-Dateien über `./data`
+* [`docker/`](docker/README.md) – Compose-Stack (Orthanc + Bridge + GNUmed-Datenbank); der GNUmed-Client läuft außerhalb auf dem Pi und tauscht GDT-Dateien über `./data`
 * [`tests/orthanc/`](tests/orthanc/README.md) – Test gegen ein echtes Orthanc
 * [`tests/interop/`](tests/interop/README.md) – Interop-Test gegen pynetdicom
 

@@ -3,6 +3,7 @@
 #  1. Datenordner in ./data anlegen und dem Benutzer PUID:PGID übereignen
 #  2. Orthanc-Konfiguration und Zugangsdaten in das Volume `orthanc-config` schreiben
 #  3. Das Passwort der Bridge in das Volume `bridge-secrets` legen (nur die Bridge sieht es)
+#  4. Passwörter für die GNUmed-Datenbank (Postgres-Administrator, gm-dbo) in das Volume `gnumed-secrets` legen
 # Passwörter werden beim ersten Start zufällig erzeugt und bleiben erhalten; per .env lassen sie sich setzen.
 set -eu
 
@@ -54,3 +55,14 @@ chmod 0600 "$CFG/admin-password" "$CFG/bridge-password"
 cp "$CFG/bridge-password" "$BRIDGE/orthanc-password"
 chown "$PUID:$PGID" "$BRIDGE/orthanc-password"
 chmod 0400 "$BRIDGE/orthanc-password"
+
+# GNUmed-Datenbank: Passwörter nur alphanumerisch (landen in Konfigurationsdateien und SQL), werden nie überschrieben.
+GM=/gnumed-secrets
+mkdir -p "$GM"
+for f in postgres-password gm-dbo-password; do
+  if [ ! -s "$GM/$f" ]; then
+    generate > "$GM/$f"
+    echo "Neues Passwort für GNUmed-Datenbank ($f) erzeugt."
+  fi
+  chmod 0644 "$GM/$f"   # Postgres/Bootstrap lesen als eigener Benutzer; das Volume ist nur für die Container sichtbar
+done

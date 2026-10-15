@@ -32,11 +32,14 @@ line
 echo " OpenGDT läuft.  Zugangs- und Verbindungsdaten (drei Bereiche):"
 line
 echo
-echo " 1) GNUmed (PVS)   –   gehört NICHT zu diesem Stack, hat eigene Zugangsdaten"
+echo " 1) GNUmed (PVS)   –   Datenbank läuft in diesem Stack, der GNUmed-Client läuft direkt auf dem Pi"
 thin
-echo "   Datenbank:          PostgreSQL auf dem Pi, Host localhost, Port 5432 (Standard)"
-echo "   Benutzer/Passwort:  vergibt GNUmed selbst. Ältere Anleitungen nennen das Konto 'any-doc' (ungeprüft)."
-echo "                       Es gibt hier KEINE Verbindung zu den Orthanc-Zugangsdaten."
+echo "   Server/Host:   localhost     Port: 5432     (nur auf dem Pi erreichbar)"
+echo "   Datenbank:     gnumed_v22    (passt zum GNUmed-Client 1.8.x)"
+echo "   Anmeldung im GNUmed-Client:  Benutzer any-doc, Passwort any-doc  (Paketvorgabe; am Datenbankserver geprüft,"
+echo "                  im Client ungetestet). Das ist NICHT das Orthanc-Passwort."
+echo "   Datenbank-Eigentümer gm-dbo: Passwort $(cat /gnumed-secrets/gm-dbo-password 2>/dev/null || echo '(noch nicht erzeugt)')  (nur für Administration)"
+echo "   Enthält synthetische Testpatienten aus dem GNUmed-Paket."
 echo "   GDT-Ordner für die Anbindung (auf dem Pi):"
 echo "     Anforderung  PVS → Bridge:   $host_data/gdt-in"
 echo "     Rückmeldung  Bridge → PVS:   $host_data/gdt-out"

@@ -24,9 +24,19 @@
   (GNUmed, Orthanc, Ultraschallsystem), ausdrücklicher Nutzerwunsch, weil der Stack im Vordergrund (`up` ohne `-d`) laufen soll. Das Passwort
   steht deshalb im Klartext in den Docker-Logs – bewusst akzeptiert, nicht „reparieren“. Die Bridge-Zugangsdaten gehören **nicht** in den Block.
   Der Block erscheint erst, wenn die Bridge „healthy“ ist (Healthcheck in der Compose-Datei alle 3 s) und Port 80 offen ist. `info` läuft mit
-  Host-Netzwerk, nur um die IP des Pi zu ermitteln. Was GNUmed betrifft, steht dort nur Belegtes bzw. ausdrücklich „ungeprüft“.
+  Host-Netzwerk, nur um die IP des Pi zu ermitteln. Was den GNUmed-*Client* betrifft, steht dort nur Belegtes bzw. ausdrücklich „ungeprüft“.
 * `PVS_EXPORT_PREFIX` ist standardmäßig der **Host-Pfad** (`${PWD}/data/export`), nicht der Container-Pfad; sonst enthält die GDT-Rückmeldung
   Pfade, die GNUmed auf dem Pi nicht findet. Der Block warnt, falls trotzdem ein `/data/…`-Pfad aktiv ist.
 * **Weboberfläche fest auf `127.0.0.1:80`** (ausdrücklicher Wunsch des Nutzers): nicht wieder variabel machen, nicht auf `0.0.0.0` öffnen.
+* **GNUmed-Datenbank** (`gnumed-db`, `gnumed-bootstrap`, `docker/gnumed/`): Postgres **15** pinnen (16 hat kein `lc_ctype` in `pg_settings`, der
+  Bootstrap von gnumed-server 22.28 bricht mit `IndexError` ab). Image `ubuntu:24.04`, Paket nur **entpackt** (`apt-get download` + `dpkg-deb -x`),
+  weil die Abhängigkeit `postgresql` sonst einen zweiten Server installiert. Das Bootstrap-Skript findet Module relativ zu sich selbst und die
+  Konfiguration wird per `sed` geändert → es läuft in einer Kopie (`/tmp/gnumed`). Nicht `gm-bootstrap_server` verwenden (Socket, `su postgres`).
+  Die Testpatienten dürfen **nicht** entfernt werden (`bootstrap-test_data.conf` ist Voraussetzung der Updates, geprüft: sonst Abbruch bei v11).
+  Vollständig = Datenbankkommentar `opengdt-bootstrap-fertig`; Staging-DBs `gnumed_v2…v21` werden danach gelöscht. Im offiziellen Postgres-Image ist
+  `127.0.0.1` *im* Container `trust` – Passwortprüfungen deshalb über das Stack-Netzwerk testen (`pgc` in `smoke.sh`), nie per `exec psql -h 127.0.0.1`.
+  Passwörter: Postgres-Admin und `gm-dbo` erzeugt (Volume `gnumed-secrets`); `any-doc/any-doc` bleibt Paketvorgabe (nur auf `127.0.0.1` erreichbar).
+  Sandbox: Bauen nur mit `docker build --network host --build-arg BASE_IMAGE=mirror.gcr.io/library/ubuntu:24.04 -t opengdt-gnumed-bootstrap:local docker/gnumed`
+  (Container haben dort kein DNS), danach `docker compose up -d` (nimmt das vorhandene Image).
 * Nicht ändern ohne Rückfrage: veröffentlichte Ports, Authentifizierung, Image-Quellen.
 * Nach Tests in der Sandbox aufräumen: `docker compose down -v; rm -rf data`.
