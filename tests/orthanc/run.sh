@@ -14,9 +14,9 @@ python3 -m venv "$WORK/venv"
 "$WORK/venv/bin/pip" install -q pynetdicom pillow numpy av
 
 mkdir -p "$WORK/worklists" "$WORK/orthanc-db" "$WORK/gdt-in" "$WORK/cfg"
-# Pfade ersetzen: Datenbank/Worklists ins Wegwerf-Verzeichnis; das Plugin liegt im Debian-Paket woanders als im Docker-Image.
+# Pfade ersetzen: Datenbank/Worklists ins Wegwerf-Verzeichnis; das Docker-Image (orthancteam) lädt das Worklist-Plugin selbst, beim Debian-Paket muss es eingetragen werden.
 sed -e "s#/var/lib/orthanc/db#$WORK/orthanc-db#g" -e "s#\"/worklists\"#\"$WORK/worklists\"#" \
-    -e "s#/usr/local/share/orthanc/plugins/#/usr/share/orthanc/plugins/#" \
+    -e 's#"Name": "OpenGDT-Orthanc",#"Name": "OpenGDT-Orthanc", "Plugins": ["/usr/share/orthanc/plugins/libModalityWorklists.so"],#' \
     "$ROOT/docker/orthanc/orthanc.json" > "$WORK/cfg/orthanc.json"
 # Ports im Test frei wählen, damit nichts kollidiert
 sed -i -e 's/"HttpPort": 8042/"HttpPort": 18042/' -e 's/"DicomPort": 4242/"DicomPort": 14242/' "$WORK/cfg/orthanc.json"

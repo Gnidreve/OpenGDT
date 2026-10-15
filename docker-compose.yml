@@ -28,11 +28,13 @@ services:
     restart: "no"
 
   orthanc:
-    image: ${ORTHANC_IMAGE:-jodogne/orthanc-plugins:latest}
+    image: ${ORTHANC_IMAGE:-orthancteam/orthanc:latest}
     restart: unless-stopped
     depends_on:
       init:
         condition: service_completed_successfully
+    environment:
+      WORKLISTS_PLUGIN_ENABLED: "true"                    # Plugin-Bibliothek im Image aktivieren (Einstellungen: docker/orthanc/orthanc.json)
     ports:
       - "4242:4242"                                       # DICOM: hier verbindet sich das Ultraschallgerät
       - "127.0.0.1:80:8042"                               # Weboberfläche/REST nur auf dem Pi selbst (Port 80 fest): http://localhost

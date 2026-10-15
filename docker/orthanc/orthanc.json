@@ -19,7 +19,6 @@
 
   "StableAge": 5,
 
-  "Plugins": ["/usr/local/share/orthanc/plugins/libModalityWorklists.so"],
   "Worklists": {
     "Enable": true,
     "Database": "/worklists",

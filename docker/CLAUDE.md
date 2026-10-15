@@ -1,10 +1,12 @@
 # CLAUDE.md – docker/
 
 * Gilt zusammen mit `Dockerfile`, `docker-compose.yml`, `.env.example` im Repository-Wurzelordner.
-* **Alles hier wurde gegen reale Images getestet** (Docker-Daemon läuft in der Sandbox mit `--storage-driver=vfs`; Images über
+* **Alles hier wurde gegen reale Images getestet** (Docker-Daemon läuft in der Sandbox mit `--storage-driver=overlay2`, `vfs` füllt die Platte; Images über
   `mirror.gcr.io`, weil Docker Hub rate-limitiert: `RUST_IMAGE=mirror.gcr.io/library/rust:1-slim-bookworm`,
-  `ORTHANC_IMAGE=mirror.gcr.io/jodogne/orthanc-plugins:latest`). Der Plugin-Pfad im Orthanc-Image unterscheidet sich vom
-  Debian-Paket – nie aus dem Gedächtnis ändern, sondern im Image nachsehen (`docker run --rm --entrypoint sh … find / -name '*Worklist*'`).
+  `ORTHANC_IMAGE=mirror.gcr.io/orthancteam/orthanc:latest`). Das Image `orthancteam/orthanc` (amd64+arm64) baut seine Konfiguration selbst: liest `/etc/orthanc/*.json`, aktiviert Plugins
+  per Umgebungsvariable (`WORKLISTS_PLUGIN_ENABLED`) bzw. wenn ihr Abschnitt (`Worklists`) in der Konfiguration steht, und trägt
+  den Plugin-Pfad selbst ein. In `orthanc.json` deshalb **kein** `Plugins`-Eintrag (er würde den Standard überschreiben). Bei Zweifeln
+  im Image nachsehen (`/startup/*.py`, `/startup/plugins-def.json`), nicht aus dem Gedächtnis ändern.
 * `orthanc.json` wird auch von `tests/orthanc/run.sh` verwendet (nur Pfade ersetzt). Änderungen dort immer mit
   `tests/orthanc/run.sh` und `docker/smoke.sh` gegenprüfen.
 * **Orthanc-Worklist verlangt exakt passenden Station-AE** (leer/fehlend matcht nicht, empirisch geprüft). Deshalb Worklist am

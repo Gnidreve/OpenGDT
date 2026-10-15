@@ -120,16 +120,14 @@ den Docker-Volumes (Orthanc-Vorgabe).
 
 ## Was getestet ist – und was nicht
 
-**Getestet** (x86_64, Docker 29, echtes `jodogne/orthanc-plugins`-Image, `pynetdicom` als Gerät): kompletter Ablauf mit
+**Getestet** (x86_64, Docker 29, echtes `orthancteam/orthanc`-Image, `pynetdicom` als Gerät): kompletter Ablauf mit
 `docker compose up`, Worklist von der Bridge, Bilder (JPEG, unkomprimiert, Cine als Mehrbild) an Orthanc, Abholung per REST,
 GDT-Rückmeldung, AVI-Export; die Abfrage des DP-50 aus dem Conformance Statement gegen Orthanc und Bridge.
 
 **Nicht getestet:**
-* **Raspberry Pi / arm64.** Ob `jodogne/orthanc-plugins:latest` ein arm64-Image bietet, ist ungeprüft. Falls nicht: anderes
-  Image in `.env` (`ORTHANC_IMAGE=…`); Pfad des Worklist-Plugins in `docker/orthanc/orthanc.json` dann ggf. anpassen.
+* **Raspberry Pi / arm64.** `orthancteam/orthanc:latest` hat laut Registry-Manifest ein arm64-Image; **gelaufen ist es nur auf
+  x86_64**. Die Bridge wird auf dem Pi selbst gebaut (erster Build dauert dort einige Minuten).
 * **Das echte DP-50**, **GNUmed** (siehe unten) und die Sommerzeit-Umstellung.
-* Der Plugin-Pfad im Image ist `/usr/local/share/orthanc/plugins/libModalityWorklists.so` (gegen das Image geprüft, nicht
-  gegen Orthanc-Debian-Pakete, wo er anders liegt).
 
 ## GNUmed und die Zugangsdaten
 
