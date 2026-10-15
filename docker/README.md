@@ -134,7 +134,7 @@ GDT-Rückmeldung, AVI-Export; die Abfrage des DP-50 aus dem Conformance Statemen
 
 * Dienst `gnumed-db`: PostgreSQL **15** (nicht 16: der Bootstrap von GNUmed 22 bricht dort ab, geprüft), erreichbar **nur** auf dem Pi unter
   `localhost:5432`. Dienst `gnumed-bootstrap`: legt beim **ersten Start** die Datenbank `gnumed_v22` an und tut danach nichts mehr
-  (Meldung „nichts zu tun“). Der erste Aufbau dauert mehrere Minuten (hier auf x86_64 gut 4; auf dem Pi länger, **nicht gemessen**), weil das
+  (Meldung „nichts zu tun“). Der erste Aufbau dauert mehrere Minuten (hier auf x86_64 gut 4; auf dem Raspberry Pi knapp 20 Minuten, vom Nutzer gemessen), weil das
   Schema von Version 2 bis 22 aufgebaut wird. Der Infoblock erscheint deshalb beim ersten Start erst danach; der Fortschritt steht im Log.
 * Die Daten liegen im Volume `gnumed-db` und überleben `docker compose down`; `down -v` löscht sie. Ein abgebrochener Aufbau wird beim
   nächsten Start automatisch neu gemacht (Marker `opengdt-bootstrap-fertig` am Datenbankkommentar).
