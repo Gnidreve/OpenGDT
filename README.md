@@ -64,6 +64,7 @@ crates/
   store/            Archiv der empfangenen Instanzen
   convert/          DICOM-Pixeldaten → Dateien fürs PVS
   bridge/           Binary: Konfiguration, Watcher, Pipeline, CLI
+devices/            Gerätewissen (z. B. Mindray DP-70/DP-50) als strukturierte Daten
 tests/interop/      Optionaler Test gegen pynetdicom (Python, nur Dev)
 ```
 

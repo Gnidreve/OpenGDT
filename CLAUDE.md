@@ -30,6 +30,7 @@ DICOM-Worklist; DICOM-Bilder → JPEG/MP4/PNG/PDF-Dateien + GDT-Rückmeldung.
 ## Karte
 * [`concept/`](concept/README.md) – Konzeptpapier (Warum, Architektur, Risiken)
 * [`crates/`](crates/README.md) – Code (Workspace)
+* [`devices/`](devices/README.md) – Gerätedaten aus Herstellerdokumenten (Pilot: Mindray DP-50)
 * [`tests/interop/`](tests/interop/README.md) – Interop-Test gegen pynetdicom
 
 ## Offene Entscheidungen (beim Nutzer)

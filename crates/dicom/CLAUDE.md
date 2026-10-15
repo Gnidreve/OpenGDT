@@ -11,6 +11,12 @@
 * Der `Server` darf durch fehlerhafte Clients nicht sterben (Test `garbage_does_not_kill_server`).
 * Anzahl SH-Werte ≤ 16 Zeichen, AE ≤ 16, UID ≤ 64 – das prüft der Stack **nicht**, Aufrufer müssen es.
 
+* Implicit VR: Sequenz-Tags außerhalb des Wörterbuchs werden über den Item-Marker (`FFFE,E000`) am
+  Wertanfang als Sequenz erkannt (`decode_elements`, Test `implicit_vr_unknown_tag_with_items_…`).
+  Ohne diese Heuristik werden Return-Key-Sequenzen von Geräten zu Rohbytes.
+* Storage-Transfer-Syntax: `ServerConfig::storage_transfer_syntaxes` (Präferenz) vor der Reihenfolge
+  der Gegenseite; nie Big Endian/Deflate.
+
 ## Tests
 * `tests/loopback.rs` – Rust-SCU gegen Rust-SCP (beweist nur Selbstkonsistenz!).
 * Echte Interoperabilität: `tests/interop/run.sh` (pynetdicom). Bei Protokolländerungen

@@ -12,15 +12,16 @@ pub struct MatchOptions {
 /// Prüft, ob `entry` zu den Suchschlüsseln in `query` passt.
 pub fn matches(entry: &Dataset, query: &Dataset, o: MatchOptions) -> bool {
     query.iter().all(|key| match &key.value {
+        // Sequenz, die nur aus leeren Schlüsseln besteht, ist ein reiner Return Key
+        // (z. B. „Referenced Study Sequence“ mit leeren UIDs): trifft immer, auch wenn
+        // der Eintrag die Sequenz gar nicht hat.
+        Value::Sequence(items) if items.iter().all(is_universal) => true,
         Value::Sequence(items) => match entry.get(key.tag).map(|e| &e.value) {
-            Some(Value::Sequence(stored)) => {
-                // Leere Sequenz im Query = universal; sonst muss ein gespeichertes Item zum (ersten) Query-Item passen.
-                items.is_empty()
-                    || stored
-                        .iter()
-                        .any(|s| items.iter().all(|q| matches(s, q, o)))
-            }
-            _ => items.iter().all(|q| q.is_empty()),
+            // Es muss ein gespeichertes Item zu allen Query-Items passen.
+            Some(Value::Sequence(stored)) => stored
+                .iter()
+                .any(|s| items.iter().all(|q| matches(s, q, o))),
+            _ => false,
         },
         Value::Fragments(_) => true,
         Value::Bytes(b) => {
@@ -44,6 +45,15 @@ pub fn matches(entry: &Dataset, query: &Dataset, o: MatchOptions) -> bool {
                 _ => k == stored,
             }
         }
+    })
+}
+
+/// Item ohne einen einzigen echten Suchwert (alle Werte leer, Sequenzen rekursiv ebenso).
+fn is_universal(item: &Dataset) -> bool {
+    item.iter().all(|e| match &e.value {
+        Value::Bytes(b) => text(b).is_empty(),
+        Value::Sequence(items) => items.iter().all(is_universal),
+        Value::Fragments(_) => true,
     })
 }
 
@@ -160,6 +170,25 @@ mod tests {
         q.set_seq(t::SPS_SEQUENCE, vec![item]);
         assert!(!matches(&entry(), &q, O));
         assert!(matches(&entry(), &q, MatchOptions { match_dates: false }));
+    }
+
+    #[test]
+    fn return_key_sequences_match_even_if_entry_lacks_them() {
+        // Wie beim Mindray DP-70/DP-50: Sequenzen mit leeren Unter-Schlüsseln.
+        let mut child = Dataset::new();
+        child.set_str(t::SOP_CLASS_UID, "");
+        child.set_str(t::SOP_INSTANCE_UID, "");
+        let mut q = Dataset::new();
+        q.set_seq(opengdt_dicom::Tag(0x0008, 0x1110), vec![child]); // fehlt im Eintrag
+        q.set_seq(opengdt_dicom::Tag(0x0008, 0x1120), vec![Dataset::new()]);
+        q.set_seq(opengdt_dicom::Tag(0x0008, 0x1111), vec![]);
+        assert!(matches(&entry(), &q, O));
+        // Ein echter Suchwert in der fehlenden Sequenz darf dagegen nicht treffen.
+        let mut real = Dataset::new();
+        real.set_str(t::SOP_INSTANCE_UID, "1.2.3");
+        let mut q2 = Dataset::new();
+        q2.set_seq(opengdt_dicom::Tag(0x0008, 0x1110), vec![real]);
+        assert!(!matches(&entry(), &q2, O));
     }
 
     #[test]

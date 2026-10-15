@@ -333,7 +333,15 @@ fn decode_elements(
         if tag.0 == 0xFFFE {
             return Err(Error::Invalid("unerwartetes Item/Delimiter-Tag"));
         }
-        let is_seq = vr == Vr::SQ || (!explicit && len == UNDEFINED && vr == Vr::UN);
+        // Implicit VR: Sequenz-Tags, die das kleine Wörterbuch nicht kennt, erkennt man
+        // am Item-Marker direkt am Wertanfang (übliche Heuristik anderer Toolkits).
+        let looks_like_seq = !explicit
+            && vr == Vr::UN
+            && len != UNDEFINED
+            && len >= 8
+            && r.d.get(r.pos..r.pos + 4) == Some(&[0xFE, 0xFF, 0x00, 0xE0][..]);
+        let is_seq =
+            vr == Vr::SQ || looks_like_seq || (!explicit && len == UNDEFINED && vr == Vr::UN);
         let value = if is_seq {
             Value::Sequence(decode_sequence(r, explicit, len)?)
         } else if len == UNDEFINED {
@@ -466,6 +474,33 @@ mod tests {
                 .as_deref(),
             Some("US")
         );
+    }
+
+    #[test]
+    fn implicit_vr_unknown_tag_with_items_is_decoded_as_sequence() {
+        // (0008,1120) ist nicht im Wörterbuch; Inhalt = ein Item mit (0008,1150) "1.2".
+        let mut item = Vec::new();
+        item.extend([
+            0x08, 0x00, 0x50, 0x11, 0x04, 0x00, 0x00, 0x00, b'1', b'.', b'2', 0,
+        ]);
+        let mut b = vec![0x08, 0x00, 0x20, 0x11];
+        b.extend(((8 + item.len()) as u32).to_le_bytes());
+        b.extend([0xFE, 0xFF, 0x00, 0xE0]);
+        b.extend((item.len() as u32).to_le_bytes());
+        b.extend(&item);
+        let ds = Dataset::decode(&b, false).unwrap();
+        let seq = ds
+            .get_seq(Tag(0x0008, 0x1120))
+            .expect("als Sequenz erkannt");
+        assert_eq!(seq.len(), 1);
+        assert_eq!(seq[0].get_str(Tag(0x0008, 0x1150)).as_deref(), Some("1.2"));
+        // Gewöhnliche Bytes, die zufällig kurz sind, bleiben Bytes.
+        let plain = Dataset::decode(
+            &[0x08, 0x00, 0x21, 0x11, 0x02, 0x00, 0x00, 0x00, b'A', b'B'],
+            false,
+        )
+        .unwrap();
+        assert!(plain.get_bytes(Tag(0x0008, 0x1121)).is_some());
     }
 
     #[test]

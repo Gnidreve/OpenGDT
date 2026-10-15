@@ -33,6 +33,8 @@ pub struct Config {
     pub worklist_ttl_hours: u64,
     pub match_dates: bool,
     // Bilder
+    /// Bevorzugte Transfer Syntaxes für eingehende Bilder (UIDs).
+    pub storage_transfer_syntaxes: Vec<String>,
     pub archive_dir: PathBuf,
     pub export_dir: PathBuf,
     /// Pfadpräfix, unter dem das PVS `export_dir` sieht (z. B. `\\\\SRV\\us`).
@@ -65,6 +67,7 @@ impl Default for Config {
             utc_offset_minutes: 0,
             worklist_ttl_hours: 24,
             match_dates: false,
+            storage_transfer_syntaxes: Vec::new(),
             archive_dir: "spool/archive".into(),
             export_dir: "spool/export".into(),
             pvs_export_prefix: String::new(),
@@ -85,6 +88,25 @@ fn parse_bool(v: &str) -> Result<bool, String> {
 fn parse_num<T: std::str::FromStr>(v: &str) -> Result<T, String> {
     v.parse()
         .map_err(|_| format!("'{v}' ist keine gültige Zahl"))
+}
+
+fn parse_transfer_syntax(v: &str) -> Result<String, String> {
+    use opengdt_dicom::uid;
+    match v.to_ascii_lowercase().as_str() {
+        "implicit-le" => Ok(uid::IMPLICIT_VR_LE.into()),
+        "explicit-le" => Ok(uid::EXPLICIT_VR_LE.into()),
+        "jpeg-baseline" => Ok(uid::JPEG_BASELINE.into()),
+        _ if v
+            .split('.')
+            .all(|p| !p.is_empty() && p.bytes().all(|b| b.is_ascii_digit()))
+            && v.contains('.') =>
+        {
+            Ok(v.to_string())
+        }
+        _ => Err(format!(
+            "unbekannte Transfer Syntax '{v}' (implicit-le, explicit-le, jpeg-baseline oder UID)"
+        )),
+    }
 }
 
 fn parse_charset(v: &str) -> Result<Charset, String> {
@@ -134,6 +156,14 @@ impl Config {
                 "utc_offset_minutes" => c.utc_offset_minutes = parse_num(v).map_err(err)?,
                 "worklist_ttl_hours" => c.worklist_ttl_hours = parse_num(v).map_err(err)?,
                 "match_dates" => c.match_dates = parse_bool(v).map_err(err)?,
+                "storage_transfer_syntaxes" => {
+                    c.storage_transfer_syntaxes = v
+                        .split(',')
+                        .map(str::trim)
+                        .filter(|s| !s.is_empty())
+                        .map(|s| parse_transfer_syntax(s).map_err(err))
+                        .collect::<Result<_, _>>()?
+                }
                 "archive_dir" => c.archive_dir = v.into(),
                 "export_dir" => c.export_dir = v.into(),
                 "pvs_export_prefix" => c.pvs_export_prefix = v.into(),
@@ -179,6 +209,21 @@ mod tests {
         assert!(c.strict_called_ae);
         assert_eq!(c.gdt_charset, Charset::Cp437);
         assert_eq!(c.utc_offset_minutes, -60);
+    }
+
+    #[test]
+    fn parses_transfer_syntax_list() {
+        let c = Config::parse(
+            "storage_transfer_syntaxes = jpeg-baseline, explicit-le, 1.2.840.10008.1.2.5",
+        )
+        .unwrap();
+        assert_eq!(c.storage_transfer_syntaxes.len(), 3);
+        assert_eq!(c.storage_transfer_syntaxes[0], "1.2.840.10008.1.2.4.50");
+        assert!(Config::parse("storage_transfer_syntaxes = quatsch").is_err());
+        assert!(Config::parse("storage_transfer_syntaxes =")
+            .unwrap()
+            .storage_transfer_syntaxes
+            .is_empty());
     }
 
     #[test]

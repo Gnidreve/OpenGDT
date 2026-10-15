@@ -55,6 +55,9 @@ pub struct ServerConfig {
     pub strict_called_ae: bool,
     pub read_timeout: Duration,
     pub max_connections: usize,
+    /// Bevorzugte Transfer Syntaxes für Storage (UIDs, absteigende Priorität).
+    /// Leer oder nichts davon vorgeschlagen: Reihenfolge der Gegenseite.
+    pub storage_transfer_syntaxes: Vec<String>,
 }
 
 impl Default for ServerConfig {
@@ -64,6 +67,7 @@ impl Default for ServerConfig {
             strict_called_ae: false,
             read_timeout: Duration::from_secs(60),
             max_connections: 32,
+            storage_transfer_syntaxes: Vec::new(),
         }
     }
 }
@@ -136,6 +140,7 @@ impl Server {
 fn negotiate(
     contexts: &[crate::pdu::PresentationContextRq],
     handler: &dyn Handler,
+    storage_preference: &[String],
 ) -> Vec<PresentationContextAc> {
     contexts
         .iter()
@@ -154,11 +159,17 @@ fn negotiate(
             }
             let proposed = |u: &str| c.transfer_syntaxes.iter().any(|t| t == u);
             let chosen = if is_store {
-                // Reihenfolge der Gegenseite respektieren; alles außer BE/Deflate nehmen.
-                c.transfer_syntaxes
+                // Bevorzugte zuerst; sonst Reihenfolge der Gegenseite. Nie BE/Deflate.
+                storage_preference
                     .iter()
-                    .find(|t| is_explicit(t).is_some())
+                    .find(|p| proposed(p) && is_explicit(p).is_some())
                     .cloned()
+                    .or_else(|| {
+                        c.transfer_syntaxes
+                            .iter()
+                            .find(|t| is_explicit(t).is_some())
+                            .cloned()
+                    })
             } else if proposed(uid::EXPLICIT_VR_LE) {
                 Some(uid::EXPLICIT_VR_LE.to_string())
             } else if proposed(uid::IMPLICIT_VR_LE) {
@@ -222,7 +233,7 @@ fn serve_connection(
             "Called AE '{called}' unbekannt (Peer {addr})"
         )));
     }
-    let accepted = negotiate(&contexts, handler);
+    let accepted = negotiate(&contexts, handler, &cfg.storage_transfer_syntaxes);
     write_pdu(
         &mut stream,
         &Pdu::AssociateAc {

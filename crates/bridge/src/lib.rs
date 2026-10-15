@@ -69,6 +69,7 @@ pub fn start(cfg: Config) -> Result<Running, String> {
         ServerConfig {
             ae_title: cfg.ae_title.clone(),
             strict_called_ae: cfg.strict_called_ae,
+            storage_transfer_syntaxes: cfg.storage_transfer_syntaxes.clone(),
             ..ServerConfig::default()
         },
         handler,

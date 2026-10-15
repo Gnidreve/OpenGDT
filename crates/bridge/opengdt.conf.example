@@ -30,6 +30,8 @@ worklist_ttl_hours = 24         # Einträge werden nach dieser Zeit verworfen
 match_dates = false             # Datumsfilter des Geräts berücksichtigen (siehe README: Zeitzone)
 
 # ---- Bilder ------------------------------------------------------------
+storage_transfer_syntaxes =     # bevorzugte Transfer Syntaxes für Bilder: implicit-le | explicit-le | jpeg-baseline | UID,
+                                # absteigend, z. B. "jpeg-baseline, explicit-le". Leer = Reihenfolge des Geräts.
 archive_dir = spool/archive     # DICOM-Originale (Quelle der Wahrheit)
 export_dir = spool/export       # konvertierte Dateien für das PVS
 pvs_export_prefix =             # Pfad, unter dem das PVS export_dir sieht, z. B. \\SRV\ultraschall
