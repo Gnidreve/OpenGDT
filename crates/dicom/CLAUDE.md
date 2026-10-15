@@ -19,6 +19,9 @@
 
 ## Tests
 * `tests/loopback.rs` – Rust-SCU gegen Rust-SCP (beweist nur Selbstkonsistenz!).
+* `tests/protocol.rs` – Fehler- und Randfälle: abgelehnte Contexts (Grund 4), Protokollverletzungen, überlanges PDU,
+  Verbindungslimit, Read-Timeout, Fake-SCP (`fake_scp`) für Fehlverhalten der Gegenstelle gegenüber dem SCU.
+  Neue Fehlerpfade hier mit einer Gegenstelle testen, die sich falsch verhält – nicht nur mit dem eigenen SCU.
 * Echte Interoperabilität: `tests/interop/run.sh` (pynetdicom). Bei Protokolländerungen
   immer laufen lassen.
 
