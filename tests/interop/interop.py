@@ -8,6 +8,7 @@ from pydicom.uid import generate_uid, ExplicitVRLittleEndian, JPEGBaseline8Bit, 
 from pydicom.encaps import encapsulate
 from pynetdicom import AE, debug_logger
 from pynetdicom.sop_class import Verification, ModalityWorklistInformationFind, UltrasoundImageStorage, UltrasoundMultiFrameImageStorage
+import av
 from PIL import Image
 import numpy as np
 
@@ -17,6 +18,8 @@ ae.add_requested_context(Verification)
 ae.add_requested_context(ModalityWorklistInformationFind)
 for ts in (JPEGBaseline8Bit, ExplicitVRLittleEndian, ImplicitVRLittleEndian):
     ae.add_requested_context(UltrasoundImageStorage, [ts])
+for ts in (JPEGBaseline8Bit, ExplicitVRLittleEndian):
+    ae.add_requested_context(UltrasoundMultiFrameImageStorage, [ts])
 
 assoc = ae.associate("127.0.0.1", 11112, ae_title="OPENGDT")
 assert assoc.is_established, "Association fehlgeschlagen"
@@ -94,7 +97,44 @@ ds2.file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
 ds2.is_little_endian = True; ds2.is_implicit_VR = False
 if "PlanarConfiguration" in ds2: del ds2.PlanarConfiguration
 
-for ds in (ds1, ds2):
+# --- Cine 1: Multi-Frame, JPEG Baseline (10 Frames, Farbverlauf wandert) ---
+def cine_base(nr):
+    ds = base_ds(generate_uid(), nr)
+    ds.SOPClassUID = UltrasoundMultiFrameImageStorage
+    ds.Rows = 48; ds.Columns = 64
+    ds.FrameTime = "50"
+    ds.FrameIncrementPointer = 0x00181063
+    return ds
+
+jpegs = []
+for i in range(10):
+    arr = np.zeros((48, 64, 3), dtype="uint8")
+    arr[..., 0] = i * 25          # Rot steigt mit dem Frame-Index
+    arr[..., 1] = 100
+    arr[..., 2] = 200 - i * 20
+    b = io.BytesIO(); Image.fromarray(arr, "RGB").save(b, "JPEG", quality=95)
+    jpegs.append(b.getvalue())
+ds3 = cine_base(3)
+ds3.NumberOfFrames = len(jpegs)
+ds3.PixelData = encapsulate(jpegs)
+ds3["PixelData"].is_undefined_length = True
+ds3.file_meta.TransferSyntaxUID = JPEGBaseline8Bit
+ds3.is_little_endian = True; ds3.is_implicit_VR = False
+
+# --- Cine 2: Multi-Frame, unkomprimiert Graustufen (8 Frames, Pixelwert = Frame*30 + Spalte) ---
+ds4 = cine_base(4)
+ds4.SamplesPerPixel = 1; ds4.PhotometricInterpretation = "MONOCHROME2"
+ds4.FrameTime = "100"
+ds4.NumberOfFrames = 8
+gpix = np.zeros((8, 48, 64), dtype="uint8")
+for f in range(8):
+    gpix[f] = (f * 30 + np.arange(64)[None, :]) % 256
+ds4.PixelData = gpix.tobytes()
+ds4.file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
+ds4.is_little_endian = True; ds4.is_implicit_VR = False
+if "PlanarConfiguration" in ds4: del ds4.PlanarConfiguration
+
+for ds in (ds1, ds2, ds3, ds4):
     s = assoc.send_c_store(ds)
     print("STORE", hex(s.Status))
     assert s.Status == 0
@@ -117,4 +157,37 @@ im = Image.open(jpg); im.load(); print("JPG", im.size)
 im2 = Image.open(png); im2.load(); print("PNG", im2.size, im2.mode)
 assert im2.size == (800, 600)
 assert list(im2.crop((0, 0, 5, 1)).tobytes()) == [0, 1, 2, 3, 4]
+# --- Cine-Videos: mit ffmpeg (PyAV) dekodieren ---
+avis = [e for e in exports if e.endswith(".avi")]
+assert len(avis) == 2, avis
+mjpg = [a for a in avis if "003_" in a][0]
+raw = [a for a in avis if "004_" in a][0]
+
+with av.open(mjpg) as c:
+    v = c.streams.video[0]
+    print("MJPG:", v.codec_context.name, v.width, v.height, float(v.average_rate), "fps, Frames:", v.frames)
+    assert v.codec_context.name == "mjpeg" and (v.width, v.height) == (64, 48)
+    assert abs(float(v.average_rate) - 20.0) < 0.01, "FrameTime 50 ms = 20 fps"
+    frames = [f.to_ndarray(format="rgb24") for f in c.decode(video=0)]
+assert len(frames) == 10, len(frames)
+for i, f in enumerate(frames):    # Rot steigt linear → Reihenfolge und Inhalt stimmen
+    assert abs(int(f[..., 0].mean()) - i * 25) <= 6, (i, f[..., 0].mean())
+
+with av.open(raw) as c:
+    v = c.streams.video[0]
+    print("RAW:", v.codec_context.name, v.width, v.height, float(v.average_rate), "fps, Frames:", v.frames)
+    assert (v.width, v.height) == (64, 48) and abs(float(v.average_rate) - 10.0) < 0.01
+    assert v.codec_context.pix_fmt == "pal8", v.codec_context.pix_fmt
+    # pal8: Ebene 0 enthält die Palettenindizes = exakt unsere Rohpixel (die Konvertierung nach Grau
+    # durch swscale würde um ±1 abweichen und ist hier nicht Prüfgegenstand)
+    gray = []
+    for fr in c.decode(video=0):
+        pl = fr.planes[0]
+        rows = np.frombuffer(pl, dtype="uint8").reshape(-1, abs(pl.line_size))
+        if pl.line_size < 0:      # bottom-up-DIB: ffmpeg liefert negativen Zeilenabstand → Zeilen umdrehen
+            rows = rows[::-1]
+        gray.append(rows[:48, :64])
+assert len(gray) == 8, len(gray)
+for f in range(8):                # exakte Pixelwerte, Zeilenreihenfolge (bottom-up korrekt gedreht)
+    assert (gray[f] == gpix[f]).all(), f
 print("INTEROP OK")

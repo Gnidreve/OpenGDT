@@ -293,3 +293,57 @@ fn unreported_studies_are_recovered_after_restart() {
     assert_eq!(p2.recover(&cfg.archive_dir), 0);
     let _ = fs::remove_dir_all(root);
 }
+
+#[test]
+fn cine_clip_is_exported_as_avi_and_referenced_in_gdt() {
+    let root = tmp("cine");
+    let cfg = Config::parse(&format!(
+        "listen = 127.0.0.1:0\ngdt_import_dir = {r}/in\ngdt_export_dir = {r}/out\nworklist_dir = {r}/wl\n\
+         archive_dir = {r}/arch\nexport_dir = {r}/export\nsettle_seconds = 0\n",
+        r = root.display()
+    ))
+    .unwrap();
+    let running = opengdt_bridge::start(cfg).unwrap();
+    let sop_class = "1.2.840.10008.5.1.4.1.1.3.1"; // US Multi-frame
+    let jpeg = |tag: u8| {
+        vec![
+            0xFF, 0xD8, 0xFF, 0xC0, 0x00, 0x0B, 0x08, 0, 8, 0, 8, 1, 1, 0x11, 0, tag, 0xFF, 0xD9,
+        ]
+    };
+    let mut ds = ultrasound_instance("4711", "5.5", "5.5.1", 1);
+    ds.set_str(t::SOP_CLASS_UID, sop_class);
+    ds.set_str(t::NUMBER_OF_FRAMES, "3");
+    ds.set_str(t::FRAME_TIME, "40");
+    ds.insert(Element {
+        tag: t::PIXEL_DATA,
+        vr: Vr::OB,
+        value: Value::Fragments(vec![vec![], jpeg(1), jpeg(2), jpeg(3)]),
+    });
+    let scu = ScuConfig {
+        calling_ae: "DP50".into(),
+        called_ae: "OPENGDT".into(),
+        timeout: Duration::from_secs(5),
+    };
+    let mut a = connect(
+        running.dicom_addr,
+        &scu,
+        &[(sop_class, &[uid::JPEG_BASELINE])],
+    )
+    .unwrap();
+    assert_eq!(a.store(sop_class, "5.5.1", &ds.encode(true)).unwrap(), 0);
+    a.release().unwrap();
+
+    let gdt_file = wait_for("GDT-Rückmeldung", || {
+        files_with_ext(&root.join("out"), "gdt").pop()
+    });
+    let rec = Record::parse(&fs::read(&gdt_file).unwrap(), true).unwrap();
+    assert_eq!(rec.raw(6303), Some(&b"AVI"[..]), "Dateiformat im GDT");
+    let avis = files_with_ext(&root.join("export"), "avi");
+    assert_eq!(avis.len(), 1);
+    let bytes = fs::read(&avis[0]).unwrap();
+    assert_eq!(&bytes[..4], b"RIFF");
+    assert_eq!(&bytes[8..12], b"AVI ");
+    assert!(bytes.windows(4).any(|w| w == b"MJPG"));
+    running.shutdown();
+    let _ = fs::remove_dir_all(root);
+}

@@ -60,8 +60,9 @@ Study Instance UID kommen **aus der Worklist** (oder per Hand – siehe Risiko u
   kann sie aber (noch) nicht in Bilddateien umwandeln → keine GDT-Rückmeldung für diese Bilder.
   Am Gerät **keine Kompression** oder **JPEG** wählen.
 * **Cine-Clips:** Das Gerät kennt **kein MPEG-4**; Clips kommen als Multi-frame mit JPEG-/unkomprimierten
-  Einzelbildern. Die Bridge liefert standardmäßig nur das **erste Bild** (`all_frames = true` für alle
-  Frames als Einzeldateien). Ein echtes Videoformat (z. B. MJPEG-AVI aus JPEG-Frames) fehlt noch.
+  Einzelbildern. Die Bridge macht daraus ein **AVI** (JPEG-Frames unverändert als MJPEG, unkomprimierte
+  als unkomprimiertes AVI; Bildrate aus Frame Time). Mit `multiframe = first|all` stattdessen Einzelbilder.
+  Offen: ob das **PVS** AVI abspielt. Mit JPEG-Transfer-Syntax (siehe oben) bleiben die Clips klein.
 * **Patientenzuordnung:** Name, ID und Accession sind laut Dokument `MWL/USER`. Wer am Gerät einen
   Patienten von Hand anlegt, erzeugt eine ID, die das PVS nicht kennt – die GDT-Rückmeldung ist dann
   nicht zuordenbar. Betrieb ausschließlich über die Worklist.

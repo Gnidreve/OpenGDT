@@ -1,4 +1,9 @@
 use super::*;
+
+/// Standard für Einzelbild-Tests: Mehrbild-Instanzen als Einzelbilder (erstes Bild).
+const STILLS: Options = Options {
+    multi_frame: MultiFrame::FirstFrame,
+};
 use opengdt_dicom::dataset::{Element, Value};
 use opengdt_dicom::Vr;
 
@@ -20,7 +25,7 @@ fn native_gray_to_png() {
         "1.2.840.10008.5.1.4.1.1.6.1",
         uid::EXPLICIT_VR_LE,
         &ds,
-        Options::default(),
+        STILLS,
     )
     .unwrap();
     assert_eq!(out.len(), 1);
@@ -40,7 +45,7 @@ fn native_rgb_planar_and_ybr() {
     ds.set_u16(t::PLANAR_CONFIGURATION, 1);
     // R-Plane, G-Plane, B-Plane (je 2 Pixel)
     ds.set_bytes(t::PIXEL_DATA, Vr::OW, vec![255, 0, 0, 255, 0, 0]);
-    let out = convert_dataset("x", uid::EXPLICIT_VR_LE, &ds, Options::default()).unwrap();
+    let out = convert_dataset("x", uid::EXPLICIT_VR_LE, &ds, STILLS).unwrap();
     if let Ok(dir) = std::env::var("OPENGDT_DUMP") {
         std::fs::write(format!("{dir}/rgb.png"), &out[0].bytes).unwrap();
     }
@@ -53,7 +58,7 @@ fn sixteen_bit_and_monochrome1() {
     ds.set_u16(t::BITS_ALLOCATED, 16);
     ds.set_str(t::PHOTOMETRIC, "MONOCHROME1");
     ds.set_bytes(t::PIXEL_DATA, Vr::OW, vec![0, 0, 0xFF, 0x0F]);
-    assert!(convert_dataset("x", uid::EXPLICIT_VR_LE, &ds, Options::default()).is_ok());
+    assert!(convert_dataset("x", uid::EXPLICIT_VR_LE, &ds, STILLS).is_ok());
 }
 
 #[test]
@@ -61,7 +66,7 @@ fn short_pixel_data_is_error() {
     let mut ds = base(10, 10);
     ds.set_bytes(t::PIXEL_DATA, Vr::OW, vec![0; 5]);
     assert!(matches!(
-        convert_dataset("x", uid::EXPLICIT_VR_LE, &ds, Options::default()),
+        convert_dataset("x", uid::EXPLICIT_VR_LE, &ds, STILLS),
         Err(Error::Invalid(_))
     ));
 }
@@ -79,7 +84,7 @@ fn encapsulated(frags: Vec<Vec<u8>>) -> Dataset {
 #[test]
 fn jpeg_passthrough_single_frame_multiple_fragments() {
     let ds = encapsulated(vec![vec![], vec![0xFF, 0xD8, 1, 2], vec![3, 4, 0xFF, 0xD9]]);
-    let out = convert_dataset("x", uid::JPEG_BASELINE, &ds, Options::default()).unwrap();
+    let out = convert_dataset("x", uid::JPEG_BASELINE, &ds, STILLS).unwrap();
     assert_eq!(out[0].extension, "jpg");
     assert_eq!(out[0].bytes, vec![0xFF, 0xD8, 1, 2, 3, 4, 0xFF, 0xD9]);
 }
@@ -93,12 +98,20 @@ fn jpeg_multiframe_first_or_all() {
     ]);
     ds.set_str(t::NUMBER_OF_FRAMES, "2");
     assert_eq!(
-        convert_dataset("x", uid::JPEG_BASELINE, &ds, Options::default())
+        convert_dataset("x", uid::JPEG_BASELINE, &ds, STILLS)
             .unwrap()
             .len(),
         1
     );
-    let all = convert_dataset("x", uid::JPEG_BASELINE, &ds, Options { all_frames: true }).unwrap();
+    let all = convert_dataset(
+        "x",
+        uid::JPEG_BASELINE,
+        &ds,
+        Options {
+            multi_frame: MultiFrame::AllFrames,
+        },
+    )
+    .unwrap();
     assert_eq!(all.len(), 2);
     assert_eq!(all[1].bytes.len(), 6);
 }
@@ -106,14 +119,14 @@ fn jpeg_multiframe_first_or_all() {
 #[test]
 fn jpeg_odd_length_padding_is_stripped() {
     let ds = encapsulated(vec![vec![], vec![0xFF, 0xD8, 5, 0xFF, 0xD9, 0]]);
-    let out = convert_dataset("x", uid::JPEG_BASELINE, &ds, Options::default()).unwrap();
+    let out = convert_dataset("x", uid::JPEG_BASELINE, &ds, STILLS).unwrap();
     assert_eq!(out[0].bytes, vec![0xFF, 0xD8, 5, 0xFF, 0xD9]);
 }
 
 #[test]
 fn mpeg4_is_concatenated() {
     let ds = encapsulated(vec![vec![], vec![1, 2], vec![3]]);
-    let out = convert_dataset("x", uid::MPEG4_HP41, &ds, Options::default()).unwrap();
+    let out = convert_dataset("x", uid::MPEG4_HP41, &ds, STILLS).unwrap();
     assert_eq!((out[0].extension, out[0].kind), ("mp4", Kind::Video));
     assert_eq!(out[0].bytes, vec![1, 2, 3]);
 }
@@ -121,7 +134,7 @@ fn mpeg4_is_concatenated() {
 #[test]
 fn unsupported_compression_is_reported() {
     let ds = encapsulated(vec![vec![], vec![1]]);
-    let r = convert_dataset("x", "1.2.840.10008.1.2.5", &ds, Options::default());
+    let r = convert_dataset("x", "1.2.840.10008.1.2.5", &ds, STILLS);
     assert!(matches!(r, Err(Error::Unsupported(_))));
 }
 
@@ -129,25 +142,15 @@ fn unsupported_compression_is_reported() {
 fn encapsulated_pdf_is_extracted() {
     let mut ds = Dataset::new();
     ds.set_bytes(ENCAPSULATED_DOCUMENT, Vr::OB, b"%PDF-1.4\0".to_vec());
-    let out = convert_dataset(
-        ENCAPSULATED_PDF_SOP_CLASS,
-        uid::EXPLICIT_VR_LE,
-        &ds,
-        Options::default(),
-    )
-    .unwrap();
+    let out =
+        convert_dataset(ENCAPSULATED_PDF_SOP_CLASS, uid::EXPLICIT_VR_LE, &ds, STILLS).unwrap();
     assert_eq!(out[0].bytes, b"%PDF-1.4");
 }
 
 #[test]
 fn no_pixel_data_is_unsupported() {
     assert!(matches!(
-        convert_dataset(
-            "x",
-            uid::EXPLICIT_VR_LE,
-            &Dataset::new(),
-            Options::default()
-        ),
+        convert_dataset("x", uid::EXPLICIT_VR_LE, &Dataset::new(), STILLS),
         Err(Error::Unsupported(_))
     ));
 }
@@ -195,7 +198,7 @@ fn png_pixels(png: &[u8]) -> (usize, usize, u8, Vec<u8>) {
 }
 
 fn one(ds: &Dataset) -> Output {
-    convert_dataset("x", uid::EXPLICIT_VR_LE, ds, Options::default())
+    convert_dataset("x", uid::EXPLICIT_VR_LE, ds, STILLS)
         .unwrap()
         .remove(0)
 }
@@ -275,10 +278,18 @@ fn multiframe_native_all_frames_vs_first() {
     let mut ds = base(1, 2);
     ds.set_str(t::NUMBER_OF_FRAMES, "2");
     ds.set_bytes(t::PIXEL_DATA, Vr::OW, vec![1, 2, 3, 4]);
-    let first = convert_dataset("x", uid::EXPLICIT_VR_LE, &ds, Options::default()).unwrap();
+    let first = convert_dataset("x", uid::EXPLICIT_VR_LE, &ds, STILLS).unwrap();
     assert_eq!(first.len(), 1);
     assert_eq!(png_pixels(&first[0].bytes).3, vec![1, 2]);
-    let all = convert_dataset("x", uid::EXPLICIT_VR_LE, &ds, Options { all_frames: true }).unwrap();
+    let all = convert_dataset(
+        "x",
+        uid::EXPLICIT_VR_LE,
+        &ds,
+        Options {
+            multi_frame: MultiFrame::AllFrames,
+        },
+    )
+    .unwrap();
     assert_eq!(all.len(), 2);
     assert_eq!(png_pixels(&all[1].bytes).3, vec![3, 4]);
 }
@@ -288,7 +299,14 @@ fn native_multiframe_with_missing_data_is_invalid() {
     let mut ds = base(1, 2);
     ds.set_str(t::NUMBER_OF_FRAMES, "3");
     ds.set_bytes(t::PIXEL_DATA, Vr::OW, vec![1, 2, 3, 4]);
-    let r = convert_dataset("x", uid::EXPLICIT_VR_LE, &ds, Options { all_frames: true });
+    let r = convert_dataset(
+        "x",
+        uid::EXPLICIT_VR_LE,
+        &ds,
+        Options {
+            multi_frame: MultiFrame::AllFrames,
+        },
+    );
     assert!(matches!(r, Err(Error::Invalid(_))), "{r:?}");
 }
 
@@ -297,14 +315,14 @@ fn bad_geometry_is_rejected() {
     let mut zero = base(0, 5);
     zero.set_bytes(t::PIXEL_DATA, Vr::OW, vec![]);
     assert!(matches!(
-        convert_dataset("x", uid::EXPLICIT_VR_LE, &zero, Options::default()),
+        convert_dataset("x", uid::EXPLICIT_VR_LE, &zero, STILLS),
         Err(Error::Invalid(_))
     ));
 
     let mut no_rows = Dataset::new();
     no_rows.set_bytes(t::PIXEL_DATA, Vr::OW, vec![0; 4]);
     assert!(matches!(
-        convert_dataset("x", uid::EXPLICIT_VR_LE, &no_rows, Options::default()),
+        convert_dataset("x", uid::EXPLICIT_VR_LE, &no_rows, STILLS),
         Err(Error::Invalid(_))
     ));
 
@@ -312,14 +330,14 @@ fn bad_geometry_is_rejected() {
     palette.set_str(t::PHOTOMETRIC, "PALETTE COLOR");
     palette.set_bytes(t::PIXEL_DATA, Vr::OW, vec![0, 0]);
     assert!(matches!(
-        convert_dataset("x", uid::EXPLICIT_VR_LE, &palette, Options::default()),
+        convert_dataset("x", uid::EXPLICIT_VR_LE, &palette, STILLS),
         Err(Error::Unsupported(_))
     ));
 
     let mut rgb16 = rgb_ds("RGB", 0, vec![0; 12]);
     rgb16.set_u16(t::BITS_ALLOCATED, 16);
     assert!(matches!(
-        convert_dataset("x", uid::EXPLICIT_VR_LE, &rgb16, Options::default()),
+        convert_dataset("x", uid::EXPLICIT_VR_LE, &rgb16, STILLS),
         Err(Error::Unsupported(_))
     ));
 }
@@ -329,7 +347,7 @@ fn pixel_data_as_sequence_is_invalid() {
     let mut ds = Dataset::new();
     ds.set_seq(t::PIXEL_DATA, vec![Dataset::new()]);
     assert!(matches!(
-        convert_dataset("x", uid::EXPLICIT_VR_LE, &ds, Options::default()),
+        convert_dataset("x", uid::EXPLICIT_VR_LE, &ds, STILLS),
         Err(Error::Invalid(_))
     ));
 }
@@ -340,7 +358,7 @@ fn pdf_without_document_is_invalid() {
         ENCAPSULATED_PDF_SOP_CLASS,
         uid::EXPLICIT_VR_LE,
         &Dataset::new(),
-        Options::default(),
+        STILLS,
     );
     assert!(matches!(r, Err(Error::Invalid(_))));
 }
@@ -378,7 +396,15 @@ fn offset_table_groups_fragments_into_frames() {
             b.clone(),
         ],
     );
-    let out = convert_dataset("x", uid::JPEG_BASELINE, &ds, Options { all_frames: true }).unwrap();
+    let out = convert_dataset(
+        "x",
+        uid::JPEG_BASELINE,
+        &ds,
+        Options {
+            multi_frame: MultiFrame::AllFrames,
+        },
+    )
+    .unwrap();
     assert_eq!(out.len(), 2);
     assert_eq!(out[0].bytes, [a1, a2].concat());
     assert_eq!(out[1].bytes, b);
@@ -390,7 +416,14 @@ fn offset_table_not_matching_fragments_is_invalid() {
         "2",
         vec![offsets(&[0, 3]), jpeg(1, 2), jpeg(2, 2), jpeg(3, 2)],
     );
-    let r = convert_dataset("x", uid::JPEG_BASELINE, &ds, Options { all_frames: true });
+    let r = convert_dataset(
+        "x",
+        uid::JPEG_BASELINE,
+        &ds,
+        Options {
+            multi_frame: MultiFrame::AllFrames,
+        },
+    );
     assert!(matches!(r, Err(Error::Invalid(_))), "{r:?}");
 }
 
@@ -398,7 +431,14 @@ fn offset_table_not_matching_fragments_is_invalid() {
 fn ambiguous_fragment_assignment_is_unsupported() {
     // 2 Frames, 3 Fragmente, leere Offset-Tabelle → nicht eindeutig, nicht raten.
     let ds = multiframe("2", vec![vec![], jpeg(1, 2), jpeg(2, 2), jpeg(3, 2)]);
-    let r = convert_dataset("x", uid::JPEG_BASELINE, &ds, Options { all_frames: true });
+    let r = convert_dataset(
+        "x",
+        uid::JPEG_BASELINE,
+        &ds,
+        Options {
+            multi_frame: MultiFrame::AllFrames,
+        },
+    );
     assert!(matches!(r, Err(Error::Unsupported(_))), "{r:?}");
 }
 
@@ -406,7 +446,7 @@ fn ambiguous_fragment_assignment_is_unsupported() {
 fn encapsulated_without_fragments_is_invalid() {
     let ds = encapsulated(vec![vec![]]);
     assert!(matches!(
-        convert_dataset("x", uid::JPEG_BASELINE, &ds, Options::default()),
+        convert_dataset("x", uid::JPEG_BASELINE, &ds, STILLS),
         Err(Error::Invalid(_))
     ));
 }
@@ -414,7 +454,15 @@ fn encapsulated_without_fragments_is_invalid() {
 #[test]
 fn one_fragment_per_frame_without_table() {
     let ds = multiframe("3", vec![vec![], jpeg(1, 1), jpeg(2, 1), jpeg(3, 1)]);
-    let out = convert_dataset("x", uid::JPEG_BASELINE, &ds, Options { all_frames: true }).unwrap();
+    let out = convert_dataset(
+        "x",
+        uid::JPEG_BASELINE,
+        &ds,
+        Options {
+            multi_frame: MultiFrame::AllFrames,
+        },
+    )
+    .unwrap();
     assert_eq!(out.len(), 3);
 }
 
@@ -425,7 +473,7 @@ fn convert_from_raw_bytes_explicit_and_implicit() {
     let mut ds = base(1, 2);
     ds.set_bytes(t::PIXEL_DATA, Vr::OW, vec![9, 8]);
     for (ts, explicit) in [(uid::EXPLICIT_VR_LE, true), (uid::IMPLICIT_VR_LE, false)] {
-        let out = convert("x", ts, &ds.encode(explicit), Options::default()).unwrap();
+        let out = convert("x", ts, &ds.encode(explicit), STILLS).unwrap();
         assert_eq!(png_pixels(&out[0].bytes).3, vec![9, 8]);
     }
 }
@@ -433,7 +481,7 @@ fn convert_from_raw_bytes_explicit_and_implicit() {
 #[test]
 fn convert_rejects_bad_transfer_syntax_and_garbage() {
     assert!(matches!(
-        convert("x", uid::EXPLICIT_VR_BE, &[], Options::default()),
+        convert("x", uid::EXPLICIT_VR_BE, &[], STILLS),
         Err(Error::Unsupported(_))
     ));
     assert!(matches!(
@@ -441,7 +489,7 @@ fn convert_rejects_bad_transfer_syntax_and_garbage() {
             "x",
             uid::EXPLICIT_VR_LE,
             &[0x28, 0x00, 0x10, 0x00, b'U', b'S', 0xFF],
-            Options::default()
+            STILLS
         ),
         Err(Error::Invalid(_))
     ));
@@ -453,4 +501,263 @@ fn error_messages_are_readable() {
         .to_string()
         .contains("nicht unterstützt"));
     assert!(Error::Invalid("y".into()).to_string().contains("ungültig"));
+}
+
+// ---- Cine-Clips als AVI ------------------------------------------------------------
+
+use crate::avi::tests::walk;
+
+const VIDEO: Options = Options {
+    multi_frame: MultiFrame::Video,
+};
+
+/// Minimales „JPEG“ mit SOF0 (Breite × Höhe) – reicht für Einpacken und Größenermittlung.
+fn jpeg_sof(w: u16, h: u16, tag: u8) -> Vec<u8> {
+    let mut v = vec![0xFF, 0xD8, 0xFF, 0xC0, 0x00, 0x0B, 0x08];
+    v.extend(h.to_be_bytes());
+    v.extend(w.to_be_bytes());
+    v.extend([1, 1, 0x11, 0, tag, tag, 0xFF, 0xD9]);
+    v
+}
+
+/// Nutzdaten der Frame-Chunks einer AVI-Datei.
+fn avi_frames(avi: &[u8]) -> Vec<Vec<u8>> {
+    walk(avi)
+        .0
+        .into_iter()
+        .map(|(p, n)| avi[p + 8..p + 8 + n].to_vec())
+        .collect()
+}
+
+fn avi_u32(avi: &[u8], tag: &[u8; 4], off: usize) -> u32 {
+    let p = avi.windows(4).position(|w| w == tag).unwrap() + 8 + off;
+    u32::from_le_bytes(avi[p..p + 4].try_into().unwrap())
+}
+
+#[test]
+fn jpeg_cine_becomes_mjpeg_avi_by_default() {
+    let frames = [
+        jpeg_sof(96, 64, 1),
+        jpeg_sof(96, 64, 2),
+        jpeg_sof(96, 64, 3),
+    ];
+    let mut ds = multiframe(
+        "3",
+        std::iter::once(vec![])
+            .chain(frames.iter().cloned())
+            .collect(),
+    );
+    ds.set_str(t::FRAME_TIME, "50");
+    let out = convert_dataset("x", uid::JPEG_BASELINE, &ds, Options::default()).unwrap();
+    assert_eq!(out.len(), 1);
+    let o = &out[0];
+    assert_eq!(
+        (o.kind, o.extension, o.gdt_format),
+        (Kind::Video, "avi", "AVI")
+    );
+    assert_eq!(
+        avi_frames(&o.bytes),
+        frames.to_vec(),
+        "JPEG-Frames unverändert eingepackt"
+    );
+    assert_eq!(avi_u32(&o.bytes, b"avih", 0), 50_000, "50 ms je Bild");
+    assert_eq!(avi_u32(&o.bytes, b"avih", 16), 3);
+    assert_eq!(
+        (
+            avi_u32(&o.bytes, b"avih", 32),
+            avi_u32(&o.bytes, b"avih", 36)
+        ),
+        (96, 64)
+    );
+}
+
+#[test]
+fn jpeg_cine_policies() {
+    let frames = vec![vec![], jpeg_sof(8, 8, 1), jpeg_sof(8, 8, 2)];
+    let ds = multiframe("2", frames);
+    let first = convert_dataset("x", uid::JPEG_BASELINE, &ds, STILLS).unwrap();
+    assert_eq!((first.len(), first[0].extension), (1, "jpg"));
+    let all = convert_dataset(
+        "x",
+        uid::JPEG_BASELINE,
+        &ds,
+        Options {
+            multi_frame: MultiFrame::AllFrames,
+        },
+    )
+    .unwrap();
+    assert_eq!((all.len(), all[0].extension), (2, "jpg"));
+    // Ein einzelnes Bild bleibt ein JPEG, auch im Video-Modus
+    let single = encapsulated(vec![vec![], jpeg_sof(8, 8, 1)]);
+    let one = convert_dataset("x", uid::JPEG_BASELINE, &single, VIDEO).unwrap();
+    assert_eq!((one.len(), one[0].extension), (1, "jpg"));
+}
+
+#[test]
+fn jpeg_cine_padding_is_removed_before_packing() {
+    let mut odd = jpeg_sof(8, 8, 1);
+    odd.push(0); // DICOM-Füllbyte hinter EOI
+    let ds = multiframe("2", vec![vec![], odd, jpeg_sof(8, 8, 2)]);
+    let out = convert_dataset("x", uid::JPEG_BASELINE, &ds, VIDEO).unwrap();
+    assert_eq!(avi_frames(&out[0].bytes)[0], jpeg_sof(8, 8, 1));
+}
+
+#[test]
+fn jpeg_cine_size_comes_from_sof_with_dataset_fallback() {
+    // Keine SOF-Marker: Größe aus Rows/Columns des Datensatzes
+    let mut ds = multiframe(
+        "2",
+        vec![
+            vec![],
+            vec![0xFF, 0xD8, 1, 0xFF, 0xD9],
+            vec![0xFF, 0xD8, 2, 0xFF, 0xD9],
+        ],
+    );
+    ds.set_u16(t::ROWS, 30);
+    ds.set_u16(t::COLUMNS, 40);
+    let out = convert_dataset("x", uid::JPEG_BASELINE, &ds, VIDEO).unwrap();
+    assert_eq!(
+        (
+            avi_u32(&out[0].bytes, b"avih", 32),
+            avi_u32(&out[0].bytes, b"avih", 36)
+        ),
+        (40, 30)
+    );
+    // Weder SOF noch Rows/Columns: Fehler statt Raten
+    let none = multiframe(
+        "2",
+        vec![
+            vec![],
+            vec![0xFF, 0xD8, 1, 0xFF, 0xD9],
+            vec![0xFF, 0xD8, 2, 0xFF, 0xD9],
+        ],
+    );
+    assert!(matches!(
+        convert_dataset("x", uid::JPEG_BASELINE, &none, VIDEO),
+        Err(Error::Invalid(_))
+    ));
+}
+
+#[test]
+fn jpeg_cine_with_changing_frame_size_is_invalid() {
+    let ds = multiframe("2", vec![vec![], jpeg_sof(8, 8, 1), jpeg_sof(16, 8, 2)]);
+    assert!(matches!(
+        convert_dataset("x", uid::JPEG_BASELINE, &ds, VIDEO),
+        Err(Error::Invalid(_))
+    ));
+}
+
+#[test]
+fn frame_rate_sources_and_fallbacks() {
+    let us = |f: &dyn Fn(&mut Dataset)| {
+        let mut d = Dataset::new();
+        f(&mut d);
+        frame_interval_us(&d)
+    };
+    assert_eq!(us(&|d| d.set_str(t::FRAME_TIME, "33.333")), 33_333);
+    assert_eq!(
+        us(&|d| d.set_str(t::FRAME_TIME, "40\\40\\41")),
+        40_000,
+        "Vektor: erster Wert"
+    );
+    assert_eq!(us(&|d| d.set_str(t::CINE_RATE, "20")), 50_000);
+    assert_eq!(us(&|d| d.set_str(Tag(0x0008, 0x2144), "10")), 100_000);
+    assert_eq!(
+        us(&|d| {
+            d.set_str(t::FRAME_TIME, "20");
+            d.set_str(t::CINE_RATE, "10");
+        }),
+        20_000,
+        "Frame Time hat Vorrang"
+    );
+    assert_eq!(us(&|_| {}), 40_000, "Standard 25 fps");
+    for bad in ["0", "-5", "abc", "100000", "0.0001"] {
+        assert_eq!(us(&|d| d.set_str(t::FRAME_TIME, bad)), 40_000, "{bad:?}");
+    }
+    assert_eq!(us(&|d| d.set_str(t::CINE_RATE, "0")), 40_000);
+}
+
+#[test]
+fn native_gray_cine_becomes_uncompressed_avi_with_palette() {
+    let mut ds = base(2, 3);
+    ds.set_str(t::NUMBER_OF_FRAMES, "2");
+    ds.set_bytes(
+        t::PIXEL_DATA,
+        Vr::OW,
+        vec![0, 50, 100, 150, 200, 250, 1, 2, 3, 4, 5, 6],
+    );
+    let out = convert_dataset("x", uid::EXPLICIT_VR_LE, &ds, VIDEO).unwrap();
+    let (kind, ext) = (out[0].kind, out[0].extension);
+    assert_eq!((kind, ext), (Kind::Video, "avi"));
+    let f = avi_frames(&out[0].bytes);
+    assert_eq!(f.len(), 2);
+    // bottom-up, Zeilen auf 4 Byte gepolstert
+    assert_eq!(f[0], vec![150, 200, 250, 0, 0, 50, 100, 0]);
+    assert_eq!(f[1], vec![4, 5, 6, 0, 1, 2, 3, 0]);
+    assert!(
+        out[0].bytes.windows(4).any(|w| w == [255, 255, 255, 0]),
+        "Graupalette enthalten"
+    );
+    if let Ok(dir) = std::env::var("OPENGDT_DUMP") {
+        std::fs::write(format!("{dir}/gray.avi"), &out[0].bytes).unwrap();
+    }
+}
+
+#[test]
+fn native_rgb_cine_is_bgr24_avi() {
+    let mut ds = rgb_ds(
+        "RGB",
+        0,
+        vec![10, 20, 30, 40, 50, 60, 11, 21, 31, 41, 51, 61],
+    );
+    ds.set_str(t::NUMBER_OF_FRAMES, "2");
+    let out = convert_dataset("x", uid::EXPLICIT_VR_LE, &ds, VIDEO).unwrap();
+    let f = avi_frames(&out[0].bytes);
+    // 1 Zeile × 2 Pixel: B,G,R je Pixel, Stride 8 → 6 Bytes + 2 Füllbytes
+    assert_eq!(f[0], vec![30, 20, 10, 60, 50, 40, 0, 0]);
+    assert_eq!(f[1], vec![31, 21, 11, 61, 51, 41, 0, 0]);
+}
+
+#[test]
+fn sixteen_bit_cine_uses_one_window_for_all_frames() {
+    let mut ds = base(1, 2);
+    ds.set_u16(t::BITS_ALLOCATED, 16);
+    ds.set_str(t::NUMBER_OF_FRAMES, "2");
+    let v: Vec<u8> = [0u16, 1000, 1000, 2000]
+        .iter()
+        .flat_map(|x| x.to_le_bytes())
+        .collect();
+    ds.set_bytes(t::PIXEL_DATA, Vr::OW, v);
+    let out = convert_dataset("x", uid::EXPLICIT_VR_LE, &ds, VIDEO).unwrap();
+    let f = avi_frames(&out[0].bytes);
+    // Fenster 0..2000 für beide Frames (je Frame skaliert wäre 0/255 und 0/255)
+    assert_eq!(&f[0][..2], &[0, 127]);
+    assert_eq!(&f[1][..2], &[127, 255]);
+}
+
+#[test]
+fn native_cine_with_missing_data_is_invalid() {
+    let mut ds = base(1, 2);
+    ds.set_str(t::NUMBER_OF_FRAMES, "3");
+    ds.set_bytes(t::PIXEL_DATA, Vr::OW, vec![1, 2, 3, 4]);
+    assert!(matches!(
+        convert_dataset("x", uid::EXPLICIT_VR_LE, &ds, VIDEO),
+        Err(Error::Invalid(_))
+    ));
+}
+
+#[test]
+fn native_cine_policies() {
+    let mut ds = base(1, 2);
+    ds.set_str(t::NUMBER_OF_FRAMES, "2");
+    ds.set_bytes(t::PIXEL_DATA, Vr::OW, vec![1, 2, 3, 4]);
+    let first = convert_dataset("x", uid::EXPLICIT_VR_LE, &ds, STILLS).unwrap();
+    assert_eq!((first.len(), first[0].extension), (1, "png"));
+    // Ein Einzelbild bleibt PNG, auch im Video-Modus
+    let mut single = base(1, 2);
+    single.set_bytes(t::PIXEL_DATA, Vr::OW, vec![1, 2]);
+    assert_eq!(
+        convert_dataset("x", uid::EXPLICIT_VR_LE, &single, VIDEO).unwrap()[0].extension,
+        "png"
+    );
 }

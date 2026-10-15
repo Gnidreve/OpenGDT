@@ -26,7 +26,7 @@ PVS getestet.**
 |---|---|
 | GDT lesen/schreiben (Zeichensätze, Längen) | ✅ implementiert und getestet; einzelne Feldkennungen/Satzarten **ungeprüft** gegen die Spezifikation (→ [`crates/gdt`](crates/gdt/CLAUDE.md)) |
 | DICOM: C-ECHO, C-FIND (Worklist), C-STORE | ✅ implementiert; Interop mit `pynetdicom` bestanden |
-| Konvertierung: JPEG/MP4 durchreichen, PNG, PDF | ✅ implementiert; JPEG-2000/RLE/Cine-aus-Einzelframes ❌ |
+| Konvertierung: JPEG/MP4 durchreichen, PNG, PDF; Cine-Clips als AVI (MJPEG bzw. unkomprimiert) | ✅ implementiert; JPEG-2000/RLE/JPEG-Lossless ❌ |
 | Mehrfach-Bilder → eine GDT-Rückmeldung, Neustart-fest | ✅ |
 | TLS, Windows-Dienst, Signal-Handling, MPPS | ❌ |
 | Rechtliche Einordnung (MDR), Datenschutzkonzept | ❌ offen, siehe Konzept |

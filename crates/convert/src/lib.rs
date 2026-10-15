@@ -5,6 +5,7 @@
 //! in den Fragmenten und werden nur ausgepackt. Unkomprimierte Pixeldaten
 //! werden als PNG geschrieben (eigener Encoder, `png.rs`).
 
+mod avi;
 mod png;
 
 use opengdt_dicom::dataset::Value;
@@ -50,11 +51,21 @@ impl std::fmt::Display for Error {
 
 impl std::error::Error for Error {}
 
+/// Umgang mit Mehrbild-Instanzen (Cine-Clips).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum MultiFrame {
+    /// Ein Video: JPEG-Frames → MJPEG-AVI (verlustfrei eingepackt), unkomprimiert → unkomprimiertes AVI.
+    #[default]
+    Video,
+    /// Nur der erste Frame als Einzelbild.
+    FirstFrame,
+    /// Jeder Frame als Einzelbild.
+    AllFrames,
+}
+
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Options {
-    /// Bei Mehrbild-Instanzen ohne Videoformat alle Frames als Einzelbilder
-    /// ausgeben (sonst nur den ersten).
-    pub all_frames: bool,
+    pub multi_frame: MultiFrame,
 }
 
 /// `data` ist der rohe Datensatz in `transfer_syntax`.
@@ -101,24 +112,30 @@ pub fn convert_dataset(
         .max(1);
 
     match &pixel.value {
-        Value::Fragments(frags) => convert_encapsulated(transfer_syntax, frags, frames, opts),
+        Value::Fragments(frags) => convert_encapsulated(transfer_syntax, ds, frags, frames, opts),
         Value::Bytes(raw) => {
             let geo = Geometry::from_dataset(ds)?;
-            let count = if opts.all_frames { frames } else { 1 };
             let fsize = geo.frame_bytes();
-            if raw.len() < fsize * frames.min(count.max(1)) {
+            let video = frames > 1 && opts.multi_frame == MultiFrame::Video;
+            let count = match (frames, opts.multi_frame) {
+                (1, _) | (_, MultiFrame::FirstFrame) => 1,
+                _ => frames,
+            };
+            if raw.len() < fsize * count {
                 return Err(Error::Invalid("Pixeldaten kürzer als Bildgeometrie".into()));
+            }
+            let frame = |i: usize| &raw[i * fsize..(i + 1) * fsize];
+            if video {
+                let all: Vec<&[u8]> = (0..count).map(frame).collect();
+                return geo.to_video(&all, frame_interval_us(ds)).map(|o| vec![o]);
             }
             (0..count)
                 .map(|i| {
-                    let frame = raw
-                        .get(i * fsize..(i + 1) * fsize)
-                        .ok_or_else(|| Error::Invalid("Frame außerhalb der Pixeldaten".into()))?;
                     Ok(Output {
                         kind: Kind::Still,
                         extension: "png",
                         gdt_format: "PNG",
-                        bytes: geo.to_png(frame)?,
+                        bytes: geo.to_png(frame(i))?,
                     })
                 })
                 .collect()
@@ -129,6 +146,7 @@ pub fn convert_dataset(
 
 fn convert_encapsulated(
     ts: &str,
+    ds: &Dataset,
     frags: &[Vec<u8>],
     frames: usize,
     opts: Options,
@@ -137,12 +155,20 @@ fn convert_encapsulated(
     let data = frags.get(1..).unwrap_or(&[]);
     match ts {
         uid::JPEG_BASELINE => {
-            let jpegs = split_frames(frags, frames)?;
-            let take = if opts.all_frames { jpegs.len() } else { 1 };
+            let jpegs: Vec<Vec<u8>> = split_frames(frags, frames)?.into_iter().map(strip_pad).collect();
+            if jpegs.len() > 1 && opts.multi_frame == MultiFrame::Video {
+                return mjpeg_video(ds, &jpegs).map(|o| vec![o]);
+            }
+            let take = if opts.multi_frame == MultiFrame::AllFrames { jpegs.len() } else { 1 };
             Ok(jpegs
                 .into_iter()
                 .take(take)
-                .map(|bytes| Output { kind: Kind::Still, extension: "jpg", gdt_format: "JPG", bytes: strip_pad(bytes) })
+                .map(|bytes| Output {
+                    kind: Kind::Still,
+                    extension: "jpg",
+                    gdt_format: "JPG",
+                    bytes,
+                })
                 .collect())
         }
         uid::MPEG4_HP41 | uid::MPEG4_HP41_BD | uid::MPEG4_HP42_2D | uid::MPEG4_HP42_3D | uid::MPEG4_STEREO => {
@@ -153,6 +179,62 @@ fn convert_encapsulated(
             "komprimierte Transfer Syntax {other} (nur JPEG Baseline und MPEG-4 werden durchgereicht)"
         ))),
     }
+}
+
+/// Bilddauer in µs: Frame Time (ms), sonst Cine Rate bzw. Recommended Display Frame Rate (Bilder/s), sonst 25 fps.
+fn frame_interval_us(ds: &Dataset) -> u32 {
+    let from_ms = ds
+        .get_str(t::FRAME_TIME)
+        .and_then(|s| {
+            s.split('\\')
+                .next()
+                .and_then(|v| v.trim().parse::<f64>().ok())
+        })
+        .map(|ms| ms * 1000.0);
+    let from_rate = |tag| {
+        ds.get_str(tag)
+            .and_then(|s| s.trim().parse::<f64>().ok())
+            .filter(|r| *r > 0.0)
+            .map(|fps| 1_000_000.0 / fps)
+    };
+    let us = from_ms
+        .or_else(|| from_rate(t::CINE_RATE))
+        .or_else(|| from_rate(Tag(0x0008, 0x2144)))
+        .unwrap_or(40_000.0);
+    // Unsinnige Angaben (0, negativ, > 1 s) → Standard
+    if (1_000.0..=1_000_000.0).contains(&us) {
+        us.round() as u32
+    } else {
+        40_000
+    }
+}
+
+/// JPEG-Frames unverändert als MJPEG-AVI einpacken.
+fn mjpeg_video(ds: &Dataset, jpegs: &[Vec<u8>]) -> Result<Output, Error> {
+    let (w, h) = avi::jpeg_dimensions(&jpegs[0])
+        .or_else(|| Some((ds.get_u16(t::COLUMNS)? as u32, ds.get_u16(t::ROWS)? as u32)))
+        .ok_or_else(|| Error::Invalid("Bildgröße des JPEG nicht ermittelbar".into()))?;
+    if let Some(bad) = jpegs
+        .iter()
+        .position(|j| avi::jpeg_dimensions(j).is_some_and(|d| d != (w, h)))
+    {
+        return Err(Error::Invalid(format!(
+            "Frame {bad} hat eine andere Größe als Frame 0"
+        )));
+    }
+    let bytes = avi::write(&avi::Video {
+        width: w,
+        height: h,
+        frame_us: frame_interval_us(ds),
+        codec: avi::Codec::Mjpeg,
+        frames: jpegs,
+    })?;
+    Ok(Output {
+        kind: Kind::Video,
+        extension: "avi",
+        gdt_format: "AVI",
+        bytes,
+    })
 }
 
 /// Teilt Fragmente in Frames. Ohne verlässliche Offset-Tabelle gilt: 1 Frame →
@@ -251,51 +333,113 @@ impl Geometry {
         self.rows * self.cols * self.samples * self.bits / 8
     }
 
-    fn to_png(&self, frame: &[u8]) -> Result<Vec<u8>, Error> {
+    /// Frames → 8 Bit, interleaved (Grau bzw. RGB). 16-Bit-Grau wird über das Min/Max-Fenster
+    /// **aller übergebenen Frames** skaliert (kein Flackern in Clips).
+    fn to_8bit(&self, frames: &[&[u8]]) -> Vec<Vec<u8>> {
         let n = self.rows * self.cols;
         if self.samples == 1 {
-            let mut gray: Vec<u8> = if self.bits == 8 {
-                frame.to_vec()
-            } else {
-                // 16 Bit → 8 Bit über Min/Max-Fenster
-                let v: Vec<u16> = frame
-                    .chunks(2)
-                    .map(|c| u16::from_le_bytes([c[0], c[1]]))
-                    .collect();
-                let (lo, hi) = v
+            let wide: Vec<Vec<u16>> = if self.bits == 16 {
+                frames
                     .iter()
-                    .fold((u16::MAX, 0), |(l, h), &x| (l.min(x), h.max(x)));
-                let span = (hi - lo).max(1) as u32;
-                v.iter()
-                    .map(|&x| (((x - lo) as u32 * 255) / span) as u8)
+                    .map(|f| {
+                        f.chunks(2)
+                            .map(|c| u16::from_le_bytes([c[0], c[1]]))
+                            .collect()
+                    })
                     .collect()
+            } else {
+                Vec::new()
             };
-            if self.mono1 {
-                gray.iter_mut().for_each(|p| *p = 255 - *p);
-            }
-            return Ok(png::encode(self.cols, self.rows, png::Color::Gray, &gray));
+            let (lo, hi) = wide
+                .iter()
+                .flatten()
+                .fold((u16::MAX, 0), |(l, h), &x| (l.min(x), h.max(x)));
+            let span = (hi.saturating_sub(lo)).max(1) as u32;
+            return (0..frames.len())
+                .map(|i| {
+                    let mut gray: Vec<u8> = if self.bits == 8 {
+                        frames[i].to_vec()
+                    } else {
+                        wide[i]
+                            .iter()
+                            .map(|&x| (((x - lo) as u32 * 255) / span) as u8)
+                            .collect()
+                    };
+                    if self.mono1 {
+                        gray.iter_mut().for_each(|p| *p = 255 - *p);
+                    }
+                    gray
+                })
+                .collect();
         }
-        // 3 Samples → interleaved RGB
-        let mut rgb = vec![0u8; n * 3];
-        for i in 0..n {
-            for c in 0..3 {
-                rgb[i * 3 + c] = if self.planar {
-                    frame[c * n + i]
-                } else {
-                    frame[i * 3 + c]
-                };
-            }
-        }
-        if self.ybr {
-            for px in rgb.chunks_mut(3) {
-                let (y, cb, cr) = (px[0] as f32, px[1] as f32 - 128.0, px[2] as f32 - 128.0);
-                let clamp = |v: f32| v.round().clamp(0.0, 255.0) as u8;
-                px[0] = clamp(y + 1.402 * cr);
-                px[1] = clamp(y - 0.344136 * cb - 0.714136 * cr);
-                px[2] = clamp(y + 1.772 * cb);
-            }
-        }
-        Ok(png::encode(self.cols, self.rows, png::Color::Rgb, &rgb))
+        frames
+            .iter()
+            .map(|frame| {
+                let mut rgb = vec![0u8; n * 3];
+                for i in 0..n {
+                    for c in 0..3 {
+                        rgb[i * 3 + c] = if self.planar {
+                            frame[c * n + i]
+                        } else {
+                            frame[i * 3 + c]
+                        };
+                    }
+                }
+                if self.ybr {
+                    for px in rgb.chunks_mut(3) {
+                        let (y, cb, cr) =
+                            (px[0] as f32, px[1] as f32 - 128.0, px[2] as f32 - 128.0);
+                        let clamp = |v: f32| v.round().clamp(0.0, 255.0) as u8;
+                        px[0] = clamp(y + 1.402 * cr);
+                        px[1] = clamp(y - 0.344136 * cb - 0.714136 * cr);
+                        px[2] = clamp(y + 1.772 * cb);
+                    }
+                }
+                rgb
+            })
+            .collect()
+    }
+
+    fn to_png(&self, frame: &[u8]) -> Result<Vec<u8>, Error> {
+        let px = self.to_8bit(&[frame]).remove(0);
+        let color = if self.samples == 1 {
+            png::Color::Gray
+        } else {
+            png::Color::Rgb
+        };
+        Ok(png::encode(self.cols, self.rows, color, &px))
+    }
+
+    /// Unkomprimiertes AVI (Graustufen: 8 Bit mit Graupalette; Farbe: 24 Bit BGR).
+    fn to_video(&self, frames: &[&[u8]], frame_us: u32) -> Result<Output, Error> {
+        let gray = self.samples == 1;
+        let dib: Vec<Vec<u8>> = self
+            .to_8bit(frames)
+            .into_iter()
+            .map(|mut px| {
+                if !gray {
+                    px.chunks_mut(3).for_each(|p| p.swap(0, 2)); // RGB → BGR
+                }
+                avi::dib_rows(self.cols, self.rows, if gray { 1 } else { 3 }, &px)
+            })
+            .collect();
+        let bytes = avi::write(&avi::Video {
+            width: self.cols as u32,
+            height: self.rows as u32,
+            frame_us,
+            codec: if gray {
+                avi::Codec::Gray8
+            } else {
+                avi::Codec::Bgr24
+            },
+            frames: &dib,
+        })?;
+        Ok(Output {
+            kind: Kind::Video,
+            extension: "avi",
+            gdt_format: "AVI",
+            bytes,
+        })
     }
 }
 

@@ -14,5 +14,5 @@ GDT-Anforderung ab und lässt `pynetdicom` dann Verbindungstest (C-ECHO), Workli
 werden die exportierten Dateien mit Pillow geöffnet und die GDT-Rückmeldung angezeigt.
 
 **Abhängigkeiten gelten nur für diesen Test**, nie für das Projekt selbst: Python 3, `pip`
-(installiert `pynetdicom`, `pillow`, `numpy` in ein temporäres venv) und Internetzugang.
+(installiert `pynetdicom`, `pillow`, `numpy`, `av` in ein temporäres venv) und Internetzugang.
 Die normalen Tests (`cargo test --workspace`) brauchen nichts davon.

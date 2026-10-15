@@ -36,4 +36,4 @@ archive_dir = spool/archive     # DICOM-Originale (Quelle der Wahrheit)
 export_dir = spool/export       # konvertierte Dateien für das PVS
 pvs_export_prefix =             # Pfad, unter dem das PVS export_dir sieht, z. B. \\SRV\ultraschall
 settle_seconds = 10             # Ruhezeit nach dem letzten Bild, bevor zurückgemeldet wird
-all_frames = false              # Mehrbild-Instanzen ohne Videoformat: alle Frames statt nur den ersten
+multiframe = video             # Cine-Clips: video (AVI) | first (nur erstes Bild) | all (alle Bilder einzeln)

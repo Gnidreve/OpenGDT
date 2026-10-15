@@ -8,7 +8,7 @@ trap 'kill "${BRIDGE_PID:-0}" 2>/dev/null || true; rm -rf "$WORK"' EXIT
 
 cargo build --manifest-path "$ROOT/Cargo.toml" -p opengdt-bridge
 python3 -m venv "$WORK/venv"
-"$WORK/venv/bin/pip" install -q pynetdicom pillow numpy
+"$WORK/venv/bin/pip" install -q pynetdicom pillow numpy av
 
 mkdir -p "$WORK/gdt-in"
 cat > "$WORK/opengdt.conf" <<CONF

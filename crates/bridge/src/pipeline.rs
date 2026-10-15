@@ -163,7 +163,7 @@ impl Pipeline {
         let mut first_meta: Option<InstanceMeta> = None;
         let mut exported: Vec<(u32, String, String, PathBuf)> = Vec::new(); // (Nr, Format, Beschreibung, rel. Pfad)
         let opts = Options {
-            all_frames: self.cfg.all_frames,
+            multi_frame: self.cfg.multiframe,
         };
 
         for f in files {

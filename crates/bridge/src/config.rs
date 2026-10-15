@@ -1,6 +1,7 @@
 //! Konfiguration: einfache `schlüssel = wert`-Datei. Unbekannte Schlüssel sind ein
 //! Fehler (Tippfehler sollen nicht still ignoriert werden).
 
+use opengdt_convert::MultiFrame;
 use opengdt_gdt::Charset;
 use std::path::PathBuf;
 
@@ -40,7 +41,8 @@ pub struct Config {
     /// Pfadpräfix, unter dem das PVS `export_dir` sieht (z. B. `\\\\SRV\\us`).
     pub pvs_export_prefix: String,
     pub settle_seconds: u64,
-    pub all_frames: bool,
+    /// Mehrbild-Instanzen: Video (AVI), nur erstes Bild oder alle Bilder einzeln.
+    pub multiframe: MultiFrame,
 }
 
 impl Default for Config {
@@ -72,7 +74,7 @@ impl Default for Config {
             export_dir: "spool/export".into(),
             pvs_export_prefix: String::new(),
             settle_seconds: 10,
-            all_frames: false,
+            multiframe: MultiFrame::Video,
         }
     }
 }
@@ -106,6 +108,15 @@ fn parse_transfer_syntax(v: &str) -> Result<String, String> {
         _ => Err(format!(
             "unbekannte Transfer Syntax '{v}' (implicit-le, explicit-le, jpeg-baseline oder UID)"
         )),
+    }
+}
+
+fn parse_multiframe(v: &str) -> Result<MultiFrame, String> {
+    match v.to_ascii_lowercase().as_str() {
+        "video" | "avi" => Ok(MultiFrame::Video),
+        "first" | "erstes" => Ok(MultiFrame::FirstFrame),
+        "all" | "alle" => Ok(MultiFrame::AllFrames),
+        _ => Err(format!("unbekannter Wert '{v}' (video, first, all)")),
     }
 }
 
@@ -168,7 +179,7 @@ impl Config {
                 "export_dir" => c.export_dir = v.into(),
                 "pvs_export_prefix" => c.pvs_export_prefix = v.into(),
                 "settle_seconds" => c.settle_seconds = parse_num(v).map_err(err)?,
-                "all_frames" => c.all_frames = parse_bool(v).map_err(err)?,
+                "multiframe" => c.multiframe = parse_multiframe(v).map_err(err)?,
                 other => return Err(err(format!("unbekannter Schlüssel '{other}'"))),
             }
         }
@@ -209,6 +220,24 @@ mod tests {
         assert!(c.strict_called_ae);
         assert_eq!(c.gdt_charset, Charset::Cp437);
         assert_eq!(c.utc_offset_minutes, -60);
+    }
+
+    #[test]
+    fn parses_multiframe() {
+        assert_eq!(Config::default().multiframe, MultiFrame::Video);
+        assert_eq!(
+            Config::parse("multiframe = first").unwrap().multiframe,
+            MultiFrame::FirstFrame
+        );
+        assert_eq!(
+            Config::parse("multiframe = ALL").unwrap().multiframe,
+            MultiFrame::AllFrames
+        );
+        assert!(Config::parse("multiframe = gif").is_err());
+        assert!(
+            Config::parse("all_frames = true").is_err(),
+            "alter Schlüssel ist entfernt"
+        );
     }
 
     #[test]
