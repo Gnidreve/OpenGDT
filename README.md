@@ -73,6 +73,8 @@ tests/interop/      Optionaler Test gegen pynetdicom (Python, nur Dev)
 cargo fmt --all
 cargo clippy --workspace --all-targets
 cargo test --workspace        # Unit-, Loopback- und Ende-zu-Ende-Tests, ohne externe Hilfsmittel
+cargo llvm-cov --workspace --ignore-filename-regex 'main\.rs|tests\.rs|/tests/'
+                              # Coverage (einmalig: cargo install cargo-llvm-cov; rustup component add llvm-tools-preview)
 tests/interop/run.sh          # optional, braucht Python + Internet (nur für diesen Test)
 ```
 

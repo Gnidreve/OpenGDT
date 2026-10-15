@@ -18,7 +18,8 @@ DICOM-Worklist; DICOM-Bilder → JPEG/MP4/PNG/PDF-Dateien + GDT-Rückmeldung.
    (z. B. `tests/interop`) sind erlaubt, solange sie das Projekt nicht berühren.
 3. **Verifizieren vor „fertig“:** `cargo fmt --all`, `cargo clippy --workspace --all-targets`
    (warnungsfrei), `cargo test --workspace`; bei Änderungen an DICOM/GDT-Ausgabe zusätzlich
-   `tests/interop/run.sh`.
+   `tests/interop/run.sh`. Coverage-Stand (Zeilen, gesamt): ~89 %; schwächste Stellen `convert/src/lib.rs`
+   (YBR, 16 Bit, Offset-Tabelle), `bridge/watcher.rs`, `bridge/handler.rs`, `dicom/scp.rs`.
 4. **Ehrlichkeit über Spezifikationslücken:** Was nicht gegen die offizielle Spezifikation
    geprüft ist, steht als „Ungeprüft“ in der CLAUDE.md des Crates (aktuell `crates/gdt`).
    Nichts als Fakt behaupten, was aus dem Gedächtnis stammt.
