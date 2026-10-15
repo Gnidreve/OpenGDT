@@ -1,0 +1,37 @@
+# OpenGDT-Bridge – Beispielkonfiguration
+# Format: schlüssel = wert, Kommentare mit #. Unbekannte Schlüssel sind ein Fehler.
+# Alle Schlüssel sind optional; hier stehen die Standardwerte (Pfade relativ zum Arbeitsverzeichnis).
+
+# ---- DICOM -------------------------------------------------------------
+ae_title = OPENGDT              # AE-Titel der Bridge (max. 16 ASCII-Zeichen)
+listen = 0.0.0.0:11112          # Adresse:Port, auf der Geräte verbinden
+strict_called_ae = false        # true: Verbindungen mit anderem Called-AE ablehnen
+
+# ---- GDT ---------------------------------------------------------------
+gdt_import_dir = spool/gdt-in   # hier legt das PVS *.gdt-Anforderungen ab
+gdt_export_dir = spool/gdt-out  # hier landen die Rückmeldungen für das PVS
+gdt_result_filename =           # leer: je Untersuchung eigene Datei; sonst fester Name, z. B. OPENGDT.GDT
+gdt_charset = latin1            # 7bit | cp437 | latin1 | utf8 (Schreibrichtung)
+gdt_strict = false              # true: Zeilenlängen der Anforderung müssen exakt stimmen
+gdt_receiver_id = PVS           # Feld 8315
+gdt_sender_id = OPENGDT         # Feld 8316
+gdt_request_type =              # erwartete Satzart (Feld 8000) der Anforderung; leer = jede
+gdt_result_type = 6310          # Satzart der Rückmeldung – UNGEPRÜFT, mit PVS abstimmen
+gdt_keep_processed = false      # true: verarbeitete Anforderungen nach gdt-in/processed verschieben
+
+# ---- Worklist ----------------------------------------------------------
+worklist_dir = spool/worklist
+modality = US
+station_ae =                    # AE-Titel des Geräts; leer = Eintrag gilt für jedes Gerät
+station_name =
+procedure_description = Sonographie
+utc_offset_minutes = 0          # Zeitzonen-Versatz für Start-Datum/-Zeit (Sommerzeit: manuell!)
+worklist_ttl_hours = 24         # Einträge werden nach dieser Zeit verworfen
+match_dates = false             # Datumsfilter des Geräts berücksichtigen (siehe README: Zeitzone)
+
+# ---- Bilder ------------------------------------------------------------
+archive_dir = spool/archive     # DICOM-Originale (Quelle der Wahrheit)
+export_dir = spool/export       # konvertierte Dateien für das PVS
+pvs_export_prefix =             # Pfad, unter dem das PVS export_dir sieht, z. B. \\SRV\ultraschall
+settle_seconds = 10             # Ruhezeit nach dem letzten Bild, bevor zurückgemeldet wird
+all_frames = false              # Mehrbild-Instanzen ohne Videoformat: alle Frames statt nur den ersten

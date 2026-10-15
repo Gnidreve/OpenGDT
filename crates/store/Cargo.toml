@@ -1,0 +1,9 @@
+[package]
+name = "opengdt-store"
+description = "Ablage empfangener DICOM-Instanzen (Rohdaten als Part-10-Dateien) und Metadaten-Extraktion"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+opengdt-dicom = { path = "../dicom" }

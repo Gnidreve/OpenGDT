@@ -1,0 +1,10 @@
+[package]
+name = "opengdt-worklist"
+description = "Modality Worklist: GDT-Patient → DICOM-Worklist-Eintrag, Ablage und C-FIND-Matching"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+opengdt-gdt = { path = "../gdt" }
+opengdt-dicom = { path = "../dicom" }

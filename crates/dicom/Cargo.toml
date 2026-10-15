@@ -1,0 +1,8 @@
+[package]
+name = "opengdt-dicom"
+description = "Minimaler DICOM-Stack (Datensätze, Upper Layer, C-ECHO/C-FIND/C-STORE) – std-only"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
