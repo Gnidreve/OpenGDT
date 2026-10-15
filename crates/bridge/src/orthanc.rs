@@ -185,7 +185,11 @@ impl Poller {
         archive: Arc<Archive>,
         pipeline: Arc<Pipeline>,
     ) -> Result<Poller, String> {
-        let orthanc = Orthanc::new(&cfg.orthanc_url, &cfg.orthanc_user, &cfg.orthanc_password)?;
+        let orthanc = Orthanc::new(
+            &cfg.orthanc_url,
+            &cfg.orthanc_user,
+            &cfg.orthanc_password()?,
+        )?;
         let state_file = cfg.archive_dir.join(".orthanc-since");
         let saved = fs::read_to_string(&state_file)
             .ok()

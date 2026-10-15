@@ -41,6 +41,8 @@ pub struct Config {
     pub orthanc_url: String,
     pub orthanc_user: String,
     pub orthanc_password: String,
+    /// Alternativ: Datei mit dem Passwort (Docker-Secret-Stil), damit es nicht in Konfiguration/Umgebung steht.
+    pub orthanc_password_file: String,
     pub orthanc_poll_seconds: u64,
     /// Beim ersten Start auch alle bereits vorhandenen Untersuchungen übernehmen.
     pub orthanc_import_history: bool,
@@ -81,6 +83,7 @@ impl Default for Config {
             orthanc_url: String::new(),
             orthanc_user: String::new(),
             orthanc_password: String::new(),
+            orthanc_password_file: String::new(),
             orthanc_poll_seconds: 2,
             orthanc_import_history: false,
             export_dir: "spool/export".into(),
@@ -161,6 +164,32 @@ fn parse_charset(v: &str) -> Result<Charset, String> {
 }
 
 impl Config {
+    /// Kopie ohne Geheimnisse, z. B. für die Ausgabe von `check-config`.
+    pub fn redacted(&self) -> Config {
+        let mut c = self.clone();
+        if !c.orthanc_password.is_empty() {
+            c.orthanc_password = "***".into();
+        }
+        c
+    }
+
+    /// Passwort für Orthanc: direkt oder aus der Datei (ohne abschließenden Zeilenumbruch).
+    pub fn orthanc_password(&self) -> Result<String, String> {
+        if self.orthanc_password_file.is_empty() {
+            return Ok(self.orthanc_password.clone());
+        }
+        let raw = std::fs::read_to_string(&self.orthanc_password_file)
+            .map_err(|e| format!("orthanc_password_file {}: {e}", self.orthanc_password_file))?;
+        let pw = raw.trim_end_matches(['\r', '\n']).to_string();
+        if pw.is_empty() {
+            return Err(format!(
+                "orthanc_password_file {} ist leer",
+                self.orthanc_password_file
+            ));
+        }
+        Ok(pw)
+    }
+
     pub fn parse(text: &str) -> Result<Config, String> {
         let mut c = Config::default();
         for (i, raw) in text.lines().enumerate() {
@@ -206,6 +235,7 @@ impl Config {
                 "orthanc_url" => c.orthanc_url = v.into(),
                 "orthanc_user" => c.orthanc_user = v.into(),
                 "orthanc_password" => c.orthanc_password = v.into(),
+                "orthanc_password_file" => c.orthanc_password_file = v.into(),
                 "orthanc_poll_seconds" => c.orthanc_poll_seconds = parse_num(v).map_err(err)?,
                 "orthanc_import_history" => {
                     c.orthanc_import_history = parse_bool(v).map_err(err)?
@@ -233,6 +263,17 @@ impl Config {
             crate::http::parse_base(&self.orthanc_url).map_err(|e| format!("orthanc_url: {e}"))?;
             if self.orthanc_poll_seconds == 0 {
                 return Err("orthanc_poll_seconds muss mindestens 1 sein".into());
+            }
+            let has_pw =
+                !self.orthanc_password.is_empty() || !self.orthanc_password_file.is_empty();
+            if !self.orthanc_password.is_empty() && !self.orthanc_password_file.is_empty() {
+                return Err("orthanc_password und orthanc_password_file sind beide gesetzt – nur eines von beiden verwenden".into());
+            }
+            if has_pw && self.orthanc_user.is_empty() {
+                return Err("orthanc_password(_file) ist gesetzt, aber orthanc_user fehlt (das Passwort würde sonst nie gesendet)".into());
+            }
+            if !self.orthanc_user.is_empty() && !has_pw {
+                return Err("orthanc_user ist gesetzt, aber weder orthanc_password noch orthanc_password_file".into());
             }
         }
         if self.gdt_import_dir == self.gdt_export_dir {
@@ -284,6 +325,57 @@ mod tests {
         assert!(c.strict_called_ae);
         assert_eq!(c.gdt_charset, Charset::Cp437);
         assert_eq!(c.utc_offset_minutes, -60);
+    }
+
+    #[test]
+    fn orthanc_credentials_are_validated() {
+        let ok = |t: &str| Config::parse(&format!("orthanc_url = http://o:1\n{t}"));
+        assert!(ok("orthanc_user = u\northanc_password = p").is_ok());
+        assert!(ok("orthanc_user = u\northanc_password_file = /x").is_ok());
+        assert!(ok("").is_ok(), "ohne Authentifizierung weiterhin möglich");
+        assert!(
+            ok("orthanc_user = u\northanc_password = p\northanc_password_file = /x").is_err(),
+            "beides"
+        );
+        assert!(
+            ok("orthanc_password = p").is_err(),
+            "Passwort ohne Benutzer würde nie gesendet"
+        );
+        assert!(ok("orthanc_password_file = /x").is_err());
+        assert!(ok("orthanc_user = u").is_err(), "Benutzer ohne Passwort");
+    }
+
+    #[test]
+    fn password_file_is_read_and_trimmed() {
+        let dir =
+            std::env::temp_dir().join(format!("opengdt-pw-{}", opengdt_dicom::uid::generate()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let f = dir.join("pw");
+        std::fs::write(&f, "geheim\r\n").unwrap();
+        let c = Config::parse(&format!(
+            "orthanc_url = http://o:1\northanc_user = u\northanc_password_file = {}",
+            f.display()
+        ))
+        .unwrap();
+        assert_eq!(c.orthanc_password().unwrap(), "geheim");
+        std::fs::write(&f, "\n").unwrap();
+        assert!(c.orthanc_password().unwrap_err().contains("leer"));
+        std::fs::remove_file(&f).unwrap();
+        assert!(c
+            .orthanc_password()
+            .unwrap_err()
+            .contains("orthanc_password_file"));
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn redacted_hides_the_password() {
+        let c = Config::parse(
+            "orthanc_url = http://o:1\northanc_user = u\northanc_password = topsecret",
+        )
+        .unwrap();
+        assert!(!format!("{:?}", c.redacted()).contains("topsecret"));
+        assert_eq!(c.orthanc_password, "topsecret", "Original bleibt unberührt");
     }
 
     #[test]

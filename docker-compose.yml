@@ -8,15 +8,23 @@
 name: opengdt
 
 services:
-  # Legt die Datenordner mit den richtigen Besitzrechten an (einmalig, endet danach).
+  # Einmaliger Init-Schritt (endet danach): Datenordner mit den richtigen Besitzrechten, Orthanc-Konfiguration
+  # und Zugangsdaten (zufällig erzeugt, siehe docker/init.sh).
   init:
     image: ${RUNTIME_IMAGE:-debian:bookworm-slim}
     user: "0:0"
-    command: >
-      sh -c "mkdir -p /data/gdt-in /data/gdt-out /data/export /data/archive /data/worklists &&
-             chown -R ${PUID:-1000}:${PGID:-1000} /data"
+    command: ["sh", "/init.sh"]
+    environment:
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
+      ORTHANC_ADMIN_PASSWORD: ${ORTHANC_ADMIN_PASSWORD:-}
+      ORTHANC_BRIDGE_PASSWORD: ${ORTHANC_BRIDGE_PASSWORD:-}
     volumes:
       - ./data:/data
+      - ./docker/init.sh:/init.sh:ro
+      - ./docker/orthanc/orthanc.json:/static/orthanc.json:ro
+      - orthanc-config:/config
+      - bridge-secrets:/bridge-secrets
     restart: "no"
 
   orthanc:
@@ -26,10 +34,10 @@ services:
       init:
         condition: service_completed_successfully
     ports:
-      - "4242:4242"            # DICOM: hier verbindet sich das Ultraschallgerät
-      - "127.0.0.1:8042:8042"  # Weboberfläche/REST nur lokal (http://localhost:8042)
+      - "4242:4242"                                       # DICOM: hier verbindet sich das Ultraschallgerät
+      - "127.0.0.1:80:8042"                               # Weboberfläche/REST nur auf dem Pi selbst (Port 80 fest): http://localhost
     volumes:
-      - ./docker/orthanc/orthanc.json:/etc/orthanc/orthanc.json:ro
+      - orthanc-config:/etc/orthanc:ro                    # orthanc.json + credentials.json (vom Init-Schritt)
       - orthanc-db:/var/lib/orthanc/db
       - ./data/worklists:/worklists:ro
 
@@ -54,8 +62,13 @@ services:
       OPENGDT_STATION_AE: ${DEVICE_AE:-}
       OPENGDT_PVS_EXPORT_PREFIX: ${PVS_EXPORT_PREFIX:-/data/export}
       OPENGDT_GDT_RESULT_FILENAME: ${GDT_RESULT_FILENAME:-}
+      OPENGDT_ORTHANC_USER: bridge
+      OPENGDT_ORTHANC_PASSWORD_FILE: /secrets/orthanc-password
     volumes:
       - ./data:/data
+      - bridge-secrets:/secrets:ro
 
 volumes:
   orthanc-db:
+  orthanc-config:
+  bridge-secrets:

@@ -13,19 +13,30 @@ cargo build --manifest-path "$ROOT/Cargo.toml" -p opengdt-bridge
 python3 -m venv "$WORK/venv"
 "$WORK/venv/bin/pip" install -q pynetdicom pillow numpy av
 
-mkdir -p "$WORK/worklists" "$WORK/orthanc-db" "$WORK/gdt-in"
+mkdir -p "$WORK/worklists" "$WORK/orthanc-db" "$WORK/gdt-in" "$WORK/cfg"
 # Pfade ersetzen: Datenbank/Worklists ins Wegwerf-Verzeichnis; das Plugin liegt im Debian-Paket woanders als im Docker-Image.
 sed -e "s#/var/lib/orthanc/db#$WORK/orthanc-db#g" -e "s#\"/worklists\"#\"$WORK/worklists\"#" \
     -e "s#/usr/local/share/orthanc/plugins/#/usr/share/orthanc/plugins/#" \
-    "$ROOT/docker/orthanc/orthanc.json" > "$WORK/orthanc.json"
+    "$ROOT/docker/orthanc/orthanc.json" > "$WORK/cfg/orthanc.json"
 # Ports im Test frei wählen, damit nichts kollidiert
-sed -i -e 's/"HttpPort": 8042/"HttpPort": 18042/' -e 's/"DicomPort": 4242/"DicomPort": 14242/' "$WORK/orthanc.json"
+sed -i -e 's/"HttpPort": 8042/"HttpPort": 18042/' -e 's/"DicomPort": 4242/"DicomPort": 14242/' "$WORK/cfg/orthanc.json"
+# Zugangsdaten wie im Docker-Stack: eigene Datei im selben Konfigurationsverzeichnis
+printf 'TestPw-Praxis-12345' > "$WORK/admin-password"; printf 'TestPw-Bridge-12345\n' > "$WORK/orthanc-password"
+cat > "$WORK/cfg/credentials.json" <<CRED
+{ "RegisteredUsers": { "praxis": "TestPw-Praxis-12345", "bridge": "TestPw-Bridge-12345" } }
+CRED
 
-Orthanc "$WORK/orthanc.json" > "$WORK/orthanc.log" 2>&1 &
+Orthanc "$WORK/cfg/" > "$WORK/orthanc.log" 2>&1 &
 ORTHANC_PID=$!
-for i in $(seq 1 40); do curl -sf http://127.0.0.1:18042/system >/dev/null 2>&1 && break; sleep 0.5; done
-curl -sf http://127.0.0.1:18042/system >/dev/null || { echo "Orthanc startet nicht:"; tail -30 "$WORK/orthanc.log"; exit 1; }
-echo "Orthanc läuft: $(curl -s http://127.0.0.1:18042/system | python3 -c 'import sys,json; d=json.load(sys.stdin); print(d["Version"], "AET", d["DicomAet"])')"
+CURL_AUTH="-u praxis:TestPw-Praxis-12345"
+for i in $(seq 1 40); do curl -sf $CURL_AUTH http://127.0.0.1:18042/system >/dev/null 2>&1 && break; sleep 0.5; done
+curl -sf $CURL_AUTH http://127.0.0.1:18042/system >/dev/null || { echo "Orthanc startet nicht:"; tail -30 "$WORK/orthanc.log"; exit 1; }
+echo "Orthanc läuft: $(curl -s $CURL_AUTH http://127.0.0.1:18042/system | python3 -c 'import sys,json; d=json.load(sys.stdin); print(d["Version"], "AET", d["DicomAet"])')"
+# Zugriffsschutz: ohne/mit falschem Passwort 401, die Bridge-Zugangsdaten gelten ebenfalls
+[ "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18042/system)" = 401 ] || { echo "FEHLER: REST ohne Anmeldung nicht abgewiesen"; exit 1; }
+[ "$(curl -s -o /dev/null -w '%{http_code}' -u praxis:falsch http://127.0.0.1:18042/changes)" = 401 ] || { echo "FEHLER: falsches Passwort akzeptiert"; exit 1; }
+[ "$(curl -s -o /dev/null -w '%{http_code}' -u bridge:TestPw-Bridge-12345 http://127.0.0.1:18042/system)" = 200 ] || { echo "FEHLER: Bridge-Benutzer abgewiesen"; exit 1; }
+echo "Zugriffsschutz ok (401 ohne/mit falschem Passwort)"
 
 cat > "$WORK/opengdt.conf" <<CONF
 listen = 127.0.0.1:11112
@@ -37,6 +48,8 @@ export_dir = $WORK/export
 settle_seconds = 1
 station_ae = MINDRAY
 orthanc_url = http://127.0.0.1:18042
+orthanc_user = bridge
+orthanc_password_file = $WORK/orthanc-password
 orthanc_poll_seconds = 1
 CONF
 "$ROOT/target/debug/opengdt-bridge" run "$WORK/opengdt.conf" > "$WORK/bridge.log" 2>&1 &

@@ -54,8 +54,41 @@ absolute Host-Pfad, z. B. `/home/pi/OpenGDT/data/export`. Er steht so in der GDT
 
 ## Orthanc ansehen
 
-Weboberfläche: <http://localhost:8042> (nur vom Pi selbst erreichbar). Dort sieht man empfangene Untersuchungen und Bilder.
-Nützlich beim Debuggen: `curl localhost:8042/changes?last`, `curl localhost:8042/studies`.
+Weboberfläche: <http://localhost> (Port **80**, fest, und nur auf `127.0.0.1`, also nur im Browser des Pi selbst erreichbar).
+Dort sieht man empfangene Untersuchungen und Bilder. Der Browser fragt nach Benutzer und Passwort:
+
+```sh
+docker/show-credentials.sh        # zeigt URL, Benutzer "praxis" und das Passwort
+```
+
+Nützlich beim Debuggen: `curl -u praxis:PASSWORT localhost/changes?last`, `curl -u praxis:PASSWORT localhost/studies`.
+Port 80 darf auf dem Pi nicht anderweitig belegt sein (z. B. nginx/apache), sonst startet `orthanc` nicht.
+
+## Zugangsdaten
+
+Orthanc ist mit Benutzername und Passwort geschützt (HTTP Basic). Es gibt zwei Benutzer:
+
+| Benutzer | Wofür | Wo das Passwort liegt |
+|---|---|---|
+| `praxis` | Weboberfläche im Browser | Volume `orthanc-config` (anzeigen: `docker/show-credentials.sh`) |
+| `bridge` | die Bridge (holt Untersuchungen ab) | Volume `bridge-secrets`, nur die Bridge sieht es |
+
+Die Passwörter werden **beim ersten Start zufällig erzeugt** (24 Zeichen), stehen nicht im Repository und nicht in `.env` und
+bleiben bei Neustarts erhalten. Selbst festlegen: `ORTHANC_ADMIN_PASSWORD` / `ORTHANC_BRIDGE_PASSWORD` in `.env`
+(12–64 Zeichen aus `A-Z a-z 0-9 . _ -`). **Ändern geht in zwei Schritten** (Orthanc liest die Zugangsdaten nur beim Start):
+
+```sh
+docker compose up -d                    # Init-Schritt schreibt die neuen Zugangsdaten
+docker compose restart orthanc bridge   # erst jetzt gelten sie
+```
+
+Ungültige Passwörter in `.env` lassen den Init-Schritt scheitern (`docker compose logs init` nennt den Grund). Alles zurücksetzen:
+`docker compose down -v` (löscht auch die Orthanc-Datenbank!).
+
+**Was das schützt und was nicht:** geschützt ist die Weboberfläche/REST von Orthanc (und damit der Zugriff auf alle Bilder).
+**Nicht** geschützt ist DICOM: Orthancs Port `4242` und der DICOM-Port `11112` der Bridge nehmen weiterhin Verbindungen
+aus dem Praxisnetz an (DICOM kennt hier keine Anmeldung, wie bei jedem Ultraschallgerät); die Passwörter liegen im Klartext in
+den Docker-Volumes (Orthanc-Vorgabe).
 
 ## Wenn etwas nicht klappt
 
@@ -66,6 +99,8 @@ Nützlich beim Debuggen: `curl localhost:8042/changes?last`, `curl localhost:804
 | Bilder landen in Orthanc, aber **keine GDT-Datei** | Orthanc meldet eine Untersuchung erst `StableAge` (5 s) nach dem letzten Bild; dann holt die Bridge sie („Orthanc: Untersuchung … übernommen“). Danach `settle_seconds` (3 s). Log der Bridge ansehen. |
 | GDT-Datei erscheint, **PVS findet Bilder nicht** | `PVS_EXPORT_PREFIX` falsch (Container-Pfad statt Host-Pfad?), Dateirechte (`PUID`/`PGID`) |
 | Bridge-Log: „Orthanc nicht erreichbar“ | Orthanc noch am Starten (normal für ~10 s) oder abgestürzt: `docker compose logs orthanc` |
+| Bridge-Log: „Orthanc verweigert den Zugriff“ | Passwort des Benutzers `bridge` passt nicht zu Orthanc: `ORTHANC_BRIDGE_PASSWORD` in `.env` geändert? Dann `docker compose up -d && docker compose restart orthanc bridge` |
+| `orthanc` startet nicht, Log nennt Port 80 | Auf dem Pi läuft schon ein Webserver auf Port 80 → stoppen/deaktivieren |
 
 ## Was getestet ist – und was nicht
 
@@ -80,6 +115,19 @@ GDT-Rückmeldung, AVI-Export; die Abfrage des DP-50 aus dem Conformance Statemen
 * Der Plugin-Pfad im Image ist `/usr/local/share/orthanc/plugins/libModalityWorklists.so` (gegen das Image geprüft, nicht
   gegen Orthanc-Debian-Pakete, wo er anders liegt).
 
+## GNUmed und die Zugangsdaten
+
+GNUmed gehört **nicht** zum Stack und hat **keine** Verbindung zu den Orthanc-Zugangsdaten. Nach dem, was sich recherchieren ließ
+(Debian-Paketdokumentation, nicht selbst ausprobiert):
+
+* GNUmed ist ein Desktop-Programm (der Client) und hat selbst **keinen Server-Port**. Es verbindet sich mit einer **PostgreSQL-Datenbank**,
+  Standardport **5432** (bei anderem Port setzt man `GM_DB_PORT`). Die Datenbank legt `gm-bootstrap_server` an (**Achtung:** löscht
+  vorhandene GNUmed-Datenbanken). Quelle: [README.Debian des Pakets gnumed-server](https://metadata.ftp-master.debian.org/changelogs/main/g/gnumed-server/gnumed-server_22.33-1_README.Debian).
+* Angemeldet wird im Client mit einem GNUmed-Benutzer; in älteren Anleitungen ist das Standardkonto `any-doc` (siehe
+  [diese Anleitung](https://www.ghacks.net/?p=18370)) – ob das für die aktuelle Version noch gilt, ist ungeprüft. Maßgeblich ist die
+  GNUmed-Dokumentation.
+* Es gibt keine Überschneidung mit den Ports des Stacks (`80`, `4242`, `11112` – PostgreSQL liegt auf `5432`).
+
 ## GNUmed – offene Punkte
 
 Ob und wie GNUmed den GDT-Ablauf unterstützt (Gerät starten, Satzarten und Felder für Auftrag/Ergebnis, Verweis oder Messwerte/Bilder),
@@ -90,6 +138,6 @@ Bis dahin arbeitet die Bridge mit definierten Testdateien (`docker/testdata/PATI
 
 ## Sicherheit
 
-Dieser Stack ist für **Entwicklung im Praxisnetz**, nicht für das Internet: Orthanc läuft ohne Benutzerverwaltung (Weboberfläche
-nur auf `127.0.0.1`), DICOM ist unverschlüsselt, Port `4242`/`11112` sind im LAN offen. Vor echtem Praxisbetrieb: Zugang,
+Dieser Stack ist für **Entwicklung im Praxisnetz**, nicht für das Internet: Orthancs Weboberfläche ist passwortgeschützt und nur
+auf `127.0.0.1` erreichbar, aber DICOM ist unverschlüsselt und unauthentifiziert, Port `4242`/`11112` sind im LAN offen. Vor echtem Praxisbetrieb: Zugang,
 Verschlüsselung, Backups und Datenschutz (siehe [`concept/`](../concept/README.md#6-offene-punkte-und-risiken)).

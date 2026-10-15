@@ -13,5 +13,11 @@
   die der Stack braucht, dort ergänzen und in `.env.example` dokumentieren.
 * Dateirechte: Der `init`-Dienst legt `./data` mit `PUID:PGID` an; die Bridge läuft nicht als root. Nie `user:` entfernen, sonst
   gehören die Dateien root und das PVS kann sie nicht löschen.
-* Nicht ändern ohne Rückfrage: Veröffentlichte Ports, Orthanc-Authentifizierung (aktuell aus, UI nur localhost), Image-Quellen.
+* **Zugangsdaten:** `docker/init.sh` erzeugt Passwörter (zufällig, einmalig) und schreibt `credentials.json` + `orthanc.json` in das Volume
+  `orthanc-config` (Orthanc liest **ein** Konfigurationsverzeichnis – mehrere Pfade lehnt Orthanc ab, gegen 1.12 geprüft; Dateien ohne
+  `.json` im Verzeichnis stören nicht). Die Bridge bekommt ihr Passwort nur als Datei (`orthanc_password_file`), nie als Umgebungsvariable.
+  Passwörter dürfen nicht in Logs, `check-config`-Ausgabe, Repository oder `.env.example` stehen (Test `tests/cli.rs`). Passwortzeichen sind auf
+  `A-Za-z0-9._-` beschränkt, weil `init.sh` die JSON-Datei mit `printf` schreibt (kein Escaping).
+* **Weboberfläche fest auf `127.0.0.1:80`** (ausdrücklicher Wunsch des Nutzers): nicht wieder variabel machen, nicht auf `0.0.0.0` öffnen.
+* Nicht ändern ohne Rückfrage: veröffentlichte Ports, Authentifizierung, Image-Quellen.
 * Nach Tests in der Sandbox aufräumen: `docker compose down -v; rm -rf data`.

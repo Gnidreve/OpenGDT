@@ -41,7 +41,7 @@ fn main() {
         },
         Some("check-config") => match load_config(args.get(1)) {
             Ok(c) => {
-                println!("{c:#?}");
+                println!("{:#?}", c.redacted());
                 0
             }
             Err(e) => {

@@ -503,3 +503,33 @@ fn paging_through_many_changes() {
         .count();
     assert_eq!(n_change_requests, 3, "drei Seiten à 100");
 }
+
+#[test]
+fn password_from_file_is_sent() {
+    let f = fake();
+    f.state.lock().unwrap().auth_required = Some("Basic dTpw".into()); // u:p
+    f.add_study(1, "aa-11", "s1");
+    let e0 = env(&url(&f), "");
+    let pw = e0.root.join("orthanc-password");
+    fs::write(&pw, "p\n").unwrap(); // mit Zeilenumbruch, wie `echo` es schreibt
+    let e = env(
+        &url(&f),
+        &format!("orthanc_user = u\northanc_password_file = {}", pw.display()),
+    );
+    let mut p = poller(&e);
+    p.since = 0;
+    assert_eq!(p.poll_once(), 1);
+}
+
+#[test]
+fn missing_password_file_is_a_clear_startup_error() {
+    let f = fake();
+    let e = env(
+        &url(&f),
+        "orthanc_user = u\northanc_password_file = /gibt/es/nicht",
+    );
+    let err = Poller::new(&e.cfg, e.archive.clone(), e.pipeline.clone())
+        .err()
+        .expect("Start muss scheitern");
+    assert!(err.contains("orthanc_password_file"), "{err}");
+}

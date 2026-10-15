@@ -36,7 +36,9 @@ durch dieselbe Pipeline wie direkt empfangene Bilder. Gegen Orthanc 1.12 geprüf
   GDT-Rückmeldung aus (`orthanc_import_history = true` ändert das). Der Stand liegt in `<archive_dir>/.orthanc-since`.
 * Fehler beim Abruf werden wiederholt; eine Änderung, die dauerhaft scheitert (oder deren Untersuchung in Orthanc gelöscht wurde),
   wird nach 10 Versuchen bzw. sofort übersprungen und blockiert nichts.
-* Zugang: nur `http://` (Orthanc im selben Docker-Netz/LAN), optional Basic-Auth über `orthanc_user`/`orthanc_password`.
+* Zugang: nur `http://` (Orthanc im selben Docker-Netz/LAN), Basic-Auth über `orthanc_user` und `orthanc_password` **oder** `orthanc_password_file`
+  (Datei mit dem Passwort, abschließender Zeilenumbruch wird entfernt). Benutzer ohne Passwort oder umgekehrt ist ein Konfigurationsfehler;
+  `check-config` gibt das Passwort nie aus.
 * Die Worklist bleibt bei der Bridge (eigener DICOM-Listener, Port 11112): Orthancs Worklist-Plugin findet Einträge nur bei exakt
   passendem Station-AE-Titel, siehe [`docker/README.md`](../../docker/README.md).
 

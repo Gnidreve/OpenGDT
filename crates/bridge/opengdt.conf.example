@@ -41,6 +41,7 @@ multiframe = video             # Cine-Clips: video (AVI) | first (nur erstes Bil
 # ---- Orthanc (optional) --------------------------------------------------
 orthanc_url =                   # z. B. http://orthanc:8042; leer = aus. Bilder, die Orthanc empfängt, übernimmt die Bridge per REST
 orthanc_user =                  # nur bei aktivierter Orthanc-Authentifizierung
-orthanc_password =
+orthanc_password =              # besser: orthanc_password_file (Datei mit dem Passwort); nur eines von beiden
+orthanc_password_file =         # Pfad zu einer Datei mit dem Passwort (wird nie ausgegeben)
 orthanc_poll_seconds = 2        # Abfrageintervall
 orthanc_import_history = false  # true: beim allerersten Start auch alle schon vorhandenen Untersuchungen übernehmen
