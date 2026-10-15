@@ -17,6 +17,10 @@ Standardbibliothek.
 
 Hintergrund, Marktkontext und Risiken: [`concept/`](concept/README.md).
 
+![Systemaufbau: Ultraschallgerät im LAN, Docker-Stack mit Orthanc, Bridge und GNUmed-Datenbank, GNUmed-Client und Ordner ./data auf dem Pi](docker/architektur.png)
+
+*Systemaufbau des Docker-Stacks. Orange: im LAN offen, ohne Anmeldung (DICOM 4242/11112). Blau: nur auf dem Pi selbst (Web 127.0.0.1:80, PostgreSQL 127.0.0.1:5432). Details: [`docker/README.md`](docker/README.md).*
+
 ## Status
 
 **Vorabversion (0.1) – Ende-zu-Ende lauffähig, aber noch nie an einem echten Gerät oder
