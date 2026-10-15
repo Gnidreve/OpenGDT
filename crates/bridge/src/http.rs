@@ -241,6 +241,50 @@ mod tests {
     }
 
     #[test]
+    fn response_parser_survives_garbage() {
+        let seeds: [&[u8]; 3] = [
+            b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n3\r\nabc\r\n4;ext=1\r\ndefg\r\n0\r\n\r\n",
+            b"HTTP/1.0 200 OK\r\nContent-Length: 3\r\n\r\nabc",
+            b"HTTP/1.1 404 Not Found\r\n\r\n",
+        ];
+        let mut x: u64 = 0x1357_9BDF_2468_ACE0;
+        let mut next = || {
+            x ^= x << 13;
+            x ^= x >> 7;
+            x ^= x << 17;
+            x
+        };
+        for i in 0..80_000 {
+            let mut v = seeds[(next() % 3) as usize].to_vec();
+            for _ in 0..1 + next() % 5 {
+                if v.is_empty() {
+                    break;
+                }
+                let at = (next() % v.len() as u64) as usize;
+                match next() % 4 {
+                    0 => v[at] = next() as u8,
+                    1 => {
+                        v.remove(at);
+                    }
+                    2 => v.truncate(at),
+                    _ => {
+                        const FILL: &[u8] = b"\r\n0123456789abcfF;";
+                        v.insert(at, FILL[(next() % FILL.len() as u64) as usize])
+                    }
+                }
+            }
+            let r = std::panic::catch_unwind(|| {
+                let _ = parse_response(&v);
+            });
+            assert!(
+                r.is_ok(),
+                "Panic bei Durchlauf {i}: {:?}",
+                String::from_utf8_lossy(&v)
+            );
+        }
+    }
+
+    #[test]
     fn rejects_broken_responses() {
         for bad in [
             &b""[..],

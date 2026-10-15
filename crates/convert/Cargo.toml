@@ -4,6 +4,7 @@ description = "DICOM-Pixeldaten → PVS-taugliche Dateien (JPEG/MP4 durchgereich
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+rust-version.workspace = true
 
 [dependencies]
 opengdt-dicom = { path = "../dicom" }

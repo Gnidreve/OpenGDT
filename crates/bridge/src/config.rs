@@ -91,6 +91,22 @@ impl Default for Config {
     }
 }
 
+/// Entfernt einen Zeilenkommentar: ab dem ersten `#` (bzw. `;`), das **nach Leerraum** steht.
+/// Ein `#` mitten im Wert (z. B. in einem Pfad oder Passwort ohne Leerzeichen davor) bleibt erhalten.
+fn strip_comment(v: &str) -> &str {
+    let b = v.as_bytes();
+    for i in 1..b.len() {
+        if (b[i] == b'#' || b[i] == b';') && (b[i - 1] == b' ' || b[i - 1] == b'\t') {
+            return &v[..i];
+        }
+    }
+    // Wert besteht nur aus einem Kommentar (z. B. `schlüssel = # leer`)
+    if v.starts_with('#') || v.starts_with(';') {
+        return "";
+    }
+    v
+}
+
 fn parse_bool(v: &str) -> Result<bool, String> {
     match v.to_ascii_lowercase().as_str() {
         "true" | "yes" | "ja" | "1" | "on" => Ok(true),
@@ -156,7 +172,7 @@ impl Config {
             let (k, v) = line
                 .split_once('=')
                 .ok_or_else(|| err("erwartet 'schlüssel = wert'".into()))?;
-            let (k, v) = (k.trim(), v.trim());
+            let (k, v) = (k.trim(), strip_comment(v).trim());
             match k {
                 "ae_title" => c.ae_title = v.into(),
                 "listen" => c.listen = v.into(),
@@ -234,6 +250,29 @@ mod tests {
     use super::*;
 
     #[test]
+    fn trailing_comments_are_stripped() {
+        let c = Config::parse("ae_title = ABC   # Kommentar\nstation_ae =   # leer\nlisten = 0.0.0.0:1\t; noch einer\ngdt_import_dir = /data/a#b").unwrap();
+        assert_eq!(c.ae_title, "ABC");
+        assert_eq!(c.station_ae, "");
+        assert_eq!(c.listen, "0.0.0.0:1");
+        assert_eq!(
+            c.gdt_import_dir,
+            std::path::PathBuf::from("/data/a#b"),
+            "# ohne Leerraum davor gehört zum Wert"
+        );
+    }
+
+    /// Alle ausgelieferten Konfigurationsdateien müssen sich laden lassen (die README sagt „kopieren und anpassen“).
+    #[test]
+    fn shipped_config_files_parse() {
+        let root = concat!(env!("CARGO_MANIFEST_DIR"), "/../..");
+        for f in ["crates/bridge/opengdt.conf.example", "docker/bridge.conf"] {
+            let text = std::fs::read_to_string(format!("{root}/{f}")).unwrap();
+            Config::parse(&text).unwrap_or_else(|e| panic!("{f}: {e}"));
+        }
+    }
+
+    #[test]
     fn defaults_are_valid() {
         assert!(Config::default().validate().is_ok());
     }
@@ -306,5 +345,20 @@ mod tests {
         assert!(Config::parse("nur text")
             .unwrap_err()
             .starts_with("Zeile 1"));
+    }
+}
+
+#[cfg(test)]
+mod example_matches_defaults {
+    use super::*;
+
+    /// Die Beispieldatei behauptet „hier stehen die Standardwerte“ – das muss stimmen.
+    #[test]
+    fn example_file_shows_the_real_defaults() {
+        let root = concat!(env!("CARGO_MANIFEST_DIR"), "/../..");
+        let text =
+            std::fs::read_to_string(format!("{root}/crates/bridge/opengdt.conf.example")).unwrap();
+        let parsed = Config::parse(&text).unwrap();
+        assert_eq!(format!("{parsed:#?}"), format!("{:#?}", Config::default()));
     }
 }

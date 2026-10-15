@@ -1,5 +1,5 @@
 # OpenGDT-Bridge – Beispielkonfiguration
-# Format: schlüssel = wert, Kommentare mit #. Unbekannte Schlüssel sind ein Fehler.
+# Format: schlüssel = wert. Kommentare: `#` oder `;` am Zeilenanfang oder nach Leerraum hinter dem Wert. Unbekannte Schlüssel sind ein Fehler.
 # Alle Schlüssel sind optional; hier stehen die Standardwerte (Pfade relativ zum Arbeitsverzeichnis).
 
 # ---- DICOM -------------------------------------------------------------

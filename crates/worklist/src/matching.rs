@@ -67,15 +67,29 @@ fn text(b: &[u8]) -> String {
 fn wildcard(pattern: &str, value: &str, _is_pn: bool) -> bool {
     let p: Vec<char> = pattern.to_lowercase().chars().collect();
     let v: Vec<char> = value.to_lowercase().chars().collect();
-    fn rec(p: &[char], v: &[char]) -> bool {
-        match p.first() {
-            None => v.is_empty(),
-            Some('*') => (0..=v.len()).any(|i| rec(&p[1..], &v[i..])),
-            Some('?') => !v.is_empty() && rec(&p[1..], &v[1..]),
-            Some(c) => v.first() == Some(c) && rec(&p[1..], &v[1..]),
+    // Iterativ mit Rücksprung nur zum letzten `*` (Laufzeit O(Muster × Wert), kein exponentielles Backtracking).
+    let (mut pi, mut vi) = (0usize, 0usize);
+    let mut star: Option<(usize, usize)> = None; // (Position des `*` im Muster, Position im Wert dafür)
+    while vi < v.len() {
+        if pi < p.len() && (p[pi] == '?' || p[pi] == v[vi]) && p[pi] != '*' {
+            pi += 1;
+            vi += 1;
+        } else if pi < p.len() && p[pi] == '*' {
+            star = Some((pi, vi));
+            pi += 1;
+        } else if let Some((sp, sv)) = star {
+            // letzten `*` ein Zeichen mehr schlucken lassen
+            pi = sp + 1;
+            vi = sv + 1;
+            star = Some((sp, sv + 1));
+        } else {
+            return false;
         }
     }
-    rec(&p, &v)
+    while pi < p.len() && p[pi] == '*' {
+        pi += 1;
+    }
+    pi == p.len()
 }
 
 /// Einzeldatum oder Bereich `YYYYMMDD-YYYYMMDD` (offene Enden erlaubt).
@@ -204,5 +218,69 @@ mod tests {
         let sps = &r.get_seq(t::SPS_SEQUENCE).unwrap()[0];
         assert_eq!(sps.get_str(t::SPS_STATION_AE).as_deref(), Some("MINDRAY"));
         assert!(sps.get(t::MODALITY).is_none());
+    }
+}
+
+#[cfg(test)]
+mod complexity {
+    /// Referenz: die ursprüngliche (langsame, aber offensichtlich korrekte) rekursive Fassung.
+    fn reference(p: &[char], v: &[char]) -> bool {
+        match p.first() {
+            None => v.is_empty(),
+            Some('*') => (0..=v.len()).any(|i| reference(&p[1..], &v[i..])),
+            Some('?') => !v.is_empty() && reference(&p[1..], &v[1..]),
+            Some(c) => v.first() == Some(c) && reference(&p[1..], &v[1..]),
+        }
+    }
+
+    use super::*;
+
+    #[test]
+    fn pathological_wildcards_finish_quickly() {
+        let start = std::time::Instant::now();
+        let value = "a".repeat(40);
+        let pattern = format!("{}b", "*a".repeat(30));
+        assert!(!wildcard(&pattern, &value, false));
+        assert!(
+            start.elapsed() < std::time::Duration::from_secs(1),
+            "Wildcard-Abgleich ist exponentiell: {:?}",
+            start.elapsed()
+        );
+    }
+
+    /// Neue Fassung muss exakt dasselbe Ergebnis liefern wie die Referenz (alle Kombinationen kurzer Muster/Werte).
+    #[test]
+    fn matches_reference_implementation_exhaustively() {
+        let alphabet = ['a', 'b', '*', '?'];
+        let values = ['a', 'b'];
+        let words = |alpha: &[char], max: usize| {
+            let mut all: Vec<String> = vec![String::new()];
+            let mut layer = vec![String::new()];
+            for _ in 0..max {
+                layer = layer
+                    .iter()
+                    .flat_map(|w| alpha.iter().map(move |c| format!("{w}{c}")))
+                    .collect();
+                all.extend(layer.clone());
+            }
+            all
+        };
+        let (mut n, mut mismatches) = (0, vec![]);
+        for p in words(&alphabet, 5) {
+            for v in words(&values, 5) {
+                let pc: Vec<char> = p.chars().collect();
+                let vc: Vec<char> = v.chars().collect();
+                n += 1;
+                if wildcard(&p, &v, false) != reference(&pc, &vc) {
+                    mismatches.push((p.clone(), v.clone()));
+                }
+            }
+        }
+        assert!(
+            mismatches.is_empty(),
+            "{} von {n} weichen ab, z. B. {:?}",
+            mismatches.len(),
+            &mismatches[..mismatches.len().min(5)]
+        );
     }
 }

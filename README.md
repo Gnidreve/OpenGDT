@@ -28,7 +28,8 @@ PVS getestet.**
 | DICOM: C-ECHO, C-FIND (Worklist), C-STORE | ✅ implementiert; Interop mit `pynetdicom` bestanden |
 | Konvertierung: JPEG/MP4 durchreichen, PNG, PDF; Cine-Clips als AVI (MJPEG bzw. unkomprimiert) | ✅ implementiert; JPEG-2000/RLE/JPEG-Lossless ❌ |
 | Mehrfach-Bilder → eine GDT-Rückmeldung, Neustart-fest | ✅ |
-| TLS, Windows-Dienst, Signal-Handling, MPPS | ❌ |
+| Docker-Stack mit Orthanc (Bildspeicher) und Bridge, Worklist über die Bridge | ✅ gegen echtes Orthanc 1.12 getestet; **Raspberry Pi/arm64 ungetestet** |
+| TLS, Windows-Dienst, Signal-Handling, MPPS, Zugriffsschutz für Orthanc | ❌ |
 | Rechtliche Einordnung (MDR), Datenschutzkonzept | ❌ offen, siehe Konzept |
 
 **Nicht in einer Praxis einsetzen**, bevor Satzarten/Feldkennungen mit dem Ziel-PVS abgestimmt,
@@ -91,7 +92,7 @@ cargo llvm-cov --workspace --ignore-filename-regex 'main\.rs|tests\.rs|/tests/'
 tests/interop/run.sh          # optional, braucht Python + Internet (nur für diesen Test)
 ```
 
-Projektregel: **keine externen Crates.**
+Projektregel: **keine externen Crates.** Voraussetzung: Rust **1.82** oder neuer (geprüft mit 1.82 und aktuellem stable).
 
 ## Lizenz
 

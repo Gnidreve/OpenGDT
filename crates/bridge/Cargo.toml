@@ -4,6 +4,7 @@ description = "Die Bridge: GDT-Anforderung → DICOM-Worklist, DICOM-Bilder → 
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+rust-version.workspace = true
 
 [[bin]]
 name = "opengdt-bridge"

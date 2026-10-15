@@ -4,8 +4,9 @@ use crate::uid;
 use crate::Error;
 use std::io::{Read, Write};
 
-/// Obergrenze für PDU-Größen, die wir lesen (Schutz vor Speicherbomben).
-const MAX_PDU: u32 = 16 * 1024 * 1024;
+/// Obergrenze für PDU-Größen, die wir lesen (Schutz vor Speicherbomben). Wir verhandeln 128 KiB; übliche
+/// Gegenstellen senden 16–64 KiB. 1 MiB lässt reichlich Luft, hält aber 32 gleichzeitige Verbindungen klein.
+const MAX_PDU: u32 = 1024 * 1024;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PresentationContextRq {

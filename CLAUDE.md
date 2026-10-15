@@ -21,11 +21,14 @@ DICOM-Worklist; DICOM-Bilder → JPEG/MP4/PNG/PDF-Dateien + GDT-Rückmeldung.
    `tests/interop/run.sh`; bei Änderungen am Orthanc-Anschluss oder am Stack zusätzlich `tests/orthanc/run.sh` und `docker/smoke.sh`.
    Coverage-Stand (Zeilen, gesamt): ~95 %; übrig sind im Kern reine I/O-Fehlerzweige
    (`accept()`-Fehler in `dicom/scp.rs`, Schreibfehler-Fortsetzungen, `bridge/watcher.rs`).
-4. **Ehrlichkeit über Spezifikationslücken:** Was nicht gegen die offizielle Spezifikation
+4. **Eingaben aus dem Netzwerk/aus Dateien sind feindlich:** Jeder Parser/Decoder braucht Größen- und Tiefenlimits, geprüfte Arithmetik
+   und einen Fall im Fuzz-Rauchtest (`crates/*/tests/fuzz_smoke.rs`, Muster dort). Hängen oder Absturz durch eine einzige Anfrage ist
+   ein Fehler, kein „Randfall“. Prozessabbrüche (Stack Overflow, Speicher) lassen sich **nicht** per `catch_unwind` abfangen.
+5. **Ehrlichkeit über Spezifikationslücken:** Was nicht gegen die offizielle Spezifikation
    geprüft ist, steht als „Ungeprüft“ in der CLAUDE.md des Crates (aktuell `crates/gdt`).
    Nichts als Fakt behaupten, was aus dem Gedächtnis stammt.
-5. Sprache: Doku und Log-Meldungen Deutsch, Bezeichner im Code Englisch.
-6. Patientendaten gehören nie in Logs auf INFO-Level über Kennung/Name hinaus, nie in Testdaten
+6. Sprache: Doku und Log-Meldungen Deutsch, Bezeichner im Code Englisch.
+7. Patientendaten gehören nie in Logs auf INFO-Level über Kennung/Name hinaus, nie in Testdaten
    echter Personen. Testdaten sind synthetisch.
 
 ## Karte

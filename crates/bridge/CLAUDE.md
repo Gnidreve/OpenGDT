@@ -12,8 +12,9 @@
   liegt im Archivverzeichnis der Untersuchung ein Marker `.reported`; `Pipeline::recover` nimmt beim Start
   alle Archiv-Untersuchungen ohne Marker wieder auf. Nachzügler-Bilder zu bereits gemeldeten
   Untersuchungen erzeugen eine zweite, kleinere Rückmeldung (nur die neuen Bilder).
-* GDT-Eingangsdatei muss nach Verarbeitung weg oder umbenannt sein, sonst Endlosschleife
-  (`finish_ok` loggt dann ERROR).
+* GDT-Eingangsdatei muss nach Verarbeitung weg oder umbenannt sein. Gelingt das nicht (Rechte!), merkt sich der Watcher die
+  Datei (`handled`, Größe+Änderungszeit) und verarbeitet sie nicht erneut, bis sie sich ändert – vorher entstanden alle paar
+  Sekunden neue Worklist-Einträge (Test `request_that_cannot_be_removed_…`).
 * `gdt_import_dir != gdt_export_dir` wird in der Konfiguration erzwungen.
 * Zeitzone: nur `utc_offset_minutes` (kein Sommerzeit-Handling) – siehe `worklist/README.md`.
 * Tests: `tests/e2e.rs` startet die komplette Bridge auf Port 0 mit Wegwerf-Verzeichnissen.

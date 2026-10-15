@@ -92,7 +92,9 @@ pub fn start(cfg: Config) -> Result<Running, String> {
             while !stop.load(Ordering::Relaxed) {
                 watcher.scan();
                 ticks += 1;
-                if ticks.is_multiple_of(600) {
+                #[allow(clippy::manual_is_multiple_of)]
+                // is_multiple_of ist erst ab Rust 1.90 stabil
+                if ticks % 600 == 0 {
                     match wl.purge_older_than(ttl) {
                         Ok(n) if n > 0 => info!("{n} abgelaufene Worklist-Einträge entfernt"),
                         Ok(_) => {}

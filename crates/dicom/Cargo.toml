@@ -4,5 +4,6 @@ description = "Minimaler DICOM-Stack (Datensätze, Upper Layer, C-ECHO/C-FIND/C-
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+rust-version.workspace = true
 
 [dependencies]

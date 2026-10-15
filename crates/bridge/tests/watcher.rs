@@ -186,3 +186,34 @@ fn same_patient_twice_replaces_worklist_entry() {
     assert_eq!(scan_twice(&mut w), 2);
     assert_eq!(e.wl.len().unwrap(), 1);
 }
+
+#[test]
+fn request_that_cannot_be_removed_is_not_processed_over_and_over() {
+    // Verschieben nach processed/ scheitert, weil dort eine Datei im Weg liegt (stellvertretend für fehlende Rechte).
+    let e = env("gdt_keep_processed = true");
+    let mut w = Watcher::new(e.cfg.clone(), e.wl.clone()).unwrap();
+    fs::write(e.cfg.gdt_import_dir.join("processed"), b"im Weg").unwrap();
+    fs::write(e.cfg.gdt_import_dir.join("a.gdt"), valid()).unwrap();
+    let mut created = 0;
+    for _ in 0..12 {
+        created += w.scan();
+    }
+    assert_eq!(
+        created, 1,
+        "dieselbe Datei darf nicht immer wieder neue Worklist-Einträge erzeugen"
+    );
+    assert!(
+        e.cfg.gdt_import_dir.join("a.gdt").exists(),
+        "Datei bleibt liegen (Fehler wird geloggt)"
+    );
+
+    // Eine *neue* Datei mit demselben Namen wird dagegen wieder verarbeitet.
+    let p = e.cfg.gdt_import_dir.join("a.gdt");
+    fs::write(&p, gdt(&[(8000, "6301"), (3000, "2"), (3101, "Zweite")])).unwrap();
+    let mut again = 0;
+    for _ in 0..4 {
+        again += w.scan();
+    }
+    assert_eq!(again, 1);
+    assert_eq!(e.wl.len().unwrap(), 2);
+}

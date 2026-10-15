@@ -6,6 +6,10 @@ use std::collections::BTreeMap;
 
 const UNDEFINED: u32 = 0xFFFF_FFFF;
 
+/// Maximale Verschachtelungstiefe von Sequenzen. Echte Datensätze liegen bei höchstens 5–6; ohne Limit
+/// könnte ein präparierter Datensatz aus dem Netzwerk den Stack überlaufen lassen (Prozessabbruch).
+const MAX_NESTING: usize = 32;
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum Value {
     Bytes(Vec<u8>),
@@ -203,7 +207,7 @@ impl Dataset {
 
     pub fn decode(data: &[u8], explicit: bool) -> Result<Dataset, Error> {
         let mut r = Reader { d: data, pos: 0 };
-        decode_elements(&mut r, explicit, data.len(), false)
+        decode_elements(&mut r, explicit, data.len(), false, 0)
     }
 
     /// Wie `decode`, liefert aber auch die Position, an der gelesen wurde
@@ -314,6 +318,7 @@ fn decode_elements(
     explicit: bool,
     end: usize,
     until_item_delim: bool,
+    depth: usize,
 ) -> Result<Dataset, Error> {
     let mut ds = Dataset::new();
     loop {
@@ -343,7 +348,7 @@ fn decode_elements(
         let is_seq =
             vr == Vr::SQ || looks_like_seq || (!explicit && len == UNDEFINED && vr == Vr::UN);
         let value = if is_seq {
-            Value::Sequence(decode_sequence(r, explicit, len)?)
+            Value::Sequence(decode_sequence(r, explicit, len, depth)?)
         } else if len == UNDEFINED {
             Value::Fragments(decode_fragments(r)?)
         } else {
@@ -358,7 +363,15 @@ fn decode_elements(
     Ok(ds)
 }
 
-fn decode_sequence(r: &mut Reader, explicit: bool, len: u32) -> Result<Vec<Dataset>, Error> {
+fn decode_sequence(
+    r: &mut Reader,
+    explicit: bool,
+    len: u32,
+    depth: usize,
+) -> Result<Vec<Dataset>, Error> {
+    if depth >= MAX_NESTING {
+        return Err(Error::Invalid("Sequenzen zu tief verschachtelt"));
+    }
     let mut items = Vec::new();
     let end = if len == UNDEFINED {
         usize::MAX
@@ -381,13 +394,13 @@ fn decode_sequence(r: &mut Reader, explicit: bool, len: u32) -> Result<Vec<Datas
             return Err(Error::Invalid("Sequenz enthält kein Item"));
         }
         let ds = if ilen == UNDEFINED {
-            decode_elements(r, explicit, r.d.len(), true)?
+            decode_elements(r, explicit, r.d.len(), true, depth + 1)?
         } else {
             let iend = r.pos + ilen as usize;
             if iend > r.d.len() {
                 return Err(Error::Truncated);
             }
-            decode_elements(r, explicit, iend, false)?
+            decode_elements(r, explicit, iend, false, depth + 1)?
         };
         items.push(ds);
     }

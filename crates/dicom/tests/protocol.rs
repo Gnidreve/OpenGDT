@@ -657,3 +657,40 @@ fn error_display_texts() {
         .to_string()
         .contains("kaputt"));
 }
+
+// ------------------------------------------------------------ Speichergrenzen
+
+#[test]
+fn oversized_messages_end_the_association_instead_of_filling_memory() {
+    let (tx, rx) = std::sync::mpsc::channel();
+    let addr = fake_scp(move |mut a| {
+        a.max_message_bytes = 10_000;
+        let r = a.receive();
+        let _ = tx.send(match r {
+            Err(Error::Protocol(m)) => m,
+            other => format!("unerwartet: {other:?}"),
+        });
+    });
+    let mut a = connect(addr, &scu(), &[(US, IMPLICIT)]).unwrap();
+    // 50 000 Bytes Datensatz > Limit 10 000
+    let _ = a.store(US, "1.2.3", &vec![7u8; 50_000]);
+    let msg = rx.recv_timeout(Duration::from_secs(5)).unwrap();
+    assert!(msg.contains("Größenlimit"), "{msg}");
+}
+
+#[test]
+fn pdu_size_limit_is_small_enough_for_a_pi() {
+    // Ein PDU mit 8 MiB Länge im Kopf wird abgelehnt, ohne dass der Server so viel Speicher anlegt.
+    let (addr, stop) = start(Script::new(), ServerConfig::default());
+    let mut s = TcpStream::connect(addr).unwrap();
+    s.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
+    std::io::Write::write_all(&mut s, &[0x01, 0x00, 0x00, 0x80, 0x00, 0x00]).unwrap(); // A-ASSOCIATE-RQ, 8 MiB
+    let mut buf = [0u8; 8];
+    assert_eq!(
+        s.read(&mut buf).unwrap(),
+        0,
+        "Server schließt die Verbindung"
+    );
+    assert!(echo_ok(addr));
+    stop.store(true, Ordering::Relaxed);
+}

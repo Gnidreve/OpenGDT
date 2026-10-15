@@ -15,6 +15,7 @@ members = [
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
-rust-version = "1.80"
+# Geprüft: Build und Tests mit 1.82 (1.81 scheitert an Option::is_none_or/iter::repeat_n); Entwicklung mit aktuellem stable.
+rust-version = "1.82"
 
 # Grundregel: keine externen Crates. Nur `std`.

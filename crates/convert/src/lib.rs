@@ -115,13 +115,16 @@ pub fn convert_dataset(
         Value::Fragments(frags) => convert_encapsulated(transfer_syntax, ds, frags, frames, opts),
         Value::Bytes(raw) => {
             let geo = Geometry::from_dataset(ds)?;
-            let fsize = geo.frame_bytes();
+            let fsize = geo.frame_bytes()?;
             let video = frames > 1 && opts.multi_frame == MultiFrame::Video;
             let count = match (frames, opts.multi_frame) {
                 (1, _) | (_, MultiFrame::FirstFrame) => 1,
                 _ => frames,
             };
-            if raw.len() < fsize * count {
+            let needed = fsize
+                .checked_mul(count)
+                .ok_or_else(|| Error::Invalid("Bildgröße × Frameanzahl zu groß".into()))?;
+            if raw.len() < needed {
                 return Err(Error::Invalid("Pixeldaten kürzer als Bildgeometrie".into()));
             }
             let frame = |i: usize| &raw[i * fsize..(i + 1) * fsize];
@@ -329,8 +332,14 @@ impl Geometry {
         }
     }
 
-    fn frame_bytes(&self) -> usize {
-        self.rows * self.cols * self.samples * self.bits / 8
+    /// Bytes je Frame; Überlauf (kaputte Größenangaben) ist ein Fehler, kein Absturz.
+    fn frame_bytes(&self) -> Result<usize, Error> {
+        self.rows
+            .checked_mul(self.cols)
+            .and_then(|n| n.checked_mul(self.samples))
+            .and_then(|n| n.checked_mul(self.bits))
+            .map(|bits| bits / 8)
+            .ok_or_else(|| Error::Invalid("Bildgröße zu groß".into()))
     }
 
     /// Frames → 8 Bit, interleaved (Grau bzw. RGB). 16-Bit-Grau wird über das Min/Max-Fenster

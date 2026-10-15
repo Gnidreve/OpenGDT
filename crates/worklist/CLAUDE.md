@@ -10,6 +10,9 @@
 * Sequenzen, deren Items nur leere Schlüssel enthalten, sind **Return Keys** und treffen immer – auch
   wenn der Eintrag die Sequenz nicht hat (`is_universal`). Reale Geräte (Mindray DP) senden sie so.
   Echte Suchwerte in einer fehlenden Sequenz treffen nicht.
+* `wildcard` ist iterativ (O(Muster × Wert)). Die frühere rekursive Fassung brauchte bei Mustern wie `*a*a*a*b` exponentiell
+  lange (eine einzige Netzwerkabfrage hätte die Worklist lahmgelegt). Test `matches_reference_implementation_exhaustively`
+  vergleicht mit der rekursiven Referenz – bei Änderungen am Matching bleibt er der Maßstab.
 * Defekte `.wl`-Dateien werden beim Lesen übersprungen, nicht gemeldet (Test
   `corrupt_files_are_ignored`).
 * `.tmp`-Dateien im Verzeichnis (`.<name>.tmp`) sind Zwischenstände und werden ignoriert.

@@ -4,6 +4,7 @@ description = "Ablage empfangener DICOM-Instanzen (Rohdaten als Part-10-Dateien)
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+rust-version.workspace = true
 
 [dependencies]
 opengdt-dicom = { path = "../dicom" }

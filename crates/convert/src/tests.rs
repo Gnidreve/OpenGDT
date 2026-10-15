@@ -761,3 +761,115 @@ fn native_cine_policies() {
         "png"
     );
 }
+
+// ---- Fuzz-Rauchtest: beliebige Geometrie/Datenlängen dürfen nie einen Panic auslösen ----------
+
+struct Rng(u64);
+impl Rng {
+    fn next(&mut self) -> u64 {
+        self.0 ^= self.0 << 13;
+        self.0 ^= self.0 >> 7;
+        self.0 ^= self.0 << 17;
+        self.0
+    }
+    fn pick<T: Copy>(&mut self, v: &[T]) -> T {
+        v[(self.next() % v.len() as u64) as usize]
+    }
+}
+
+#[test]
+fn random_geometry_and_data_never_panic() {
+    let mut rng = Rng(0xDEAD_BEEF_CAFE_F00D);
+    let dims = [0u16, 1, 2, 3, 7, 64, 255, 1000, 65535];
+    let phot = [
+        "MONOCHROME1",
+        "MONOCHROME2",
+        "RGB",
+        "YBR_FULL",
+        "YBR_FULL_422",
+        "PALETTE COLOR",
+        "",
+    ];
+    let frames = ["", "0", "1", "2", "5", "-3", "abc", "100000", "4294967296"];
+    let policies = [
+        MultiFrame::Video,
+        MultiFrame::FirstFrame,
+        MultiFrame::AllFrames,
+    ];
+    let mut panics = Vec::new();
+    for i in 0..30_000 {
+        let mut ds = Dataset::new();
+        ds.set_u16(t::ROWS, rng.pick(&dims));
+        ds.set_u16(t::COLUMNS, rng.pick(&dims));
+        ds.set_u16(t::BITS_ALLOCATED, rng.pick(&[1, 8, 12, 16, 32, 0]));
+        ds.set_u16(t::SAMPLES_PER_PIXEL, rng.pick(&[0, 1, 3, 4]));
+        ds.set_u16(t::PLANAR_CONFIGURATION, rng.pick(&[0, 1, 2]));
+        ds.set_str(t::PHOTOMETRIC, rng.pick(&phot));
+        ds.set_str(t::NUMBER_OF_FRAMES, rng.pick(&frames));
+        let len = rng.pick(&[0usize, 1, 2, 3, 5, 12, 100, 4096, 70000]);
+        let data: Vec<u8> = (0..len).map(|_| rng.next() as u8).collect();
+        ds.set_bytes(t::PIXEL_DATA, Vr::OW, data);
+        let policy = rng.pick(&policies);
+        let r = std::panic::catch_unwind(|| {
+            let _ = convert_dataset(
+                "x",
+                uid::EXPLICIT_VR_LE,
+                &ds,
+                Options {
+                    multi_frame: policy,
+                },
+            );
+        });
+        if r.is_err() {
+            panics.push(i);
+            if panics.len() >= 3 {
+                break;
+            }
+        }
+    }
+    assert!(panics.is_empty(), "Panic bei Durchläufen {panics:?}");
+}
+
+#[test]
+fn random_encapsulated_data_never_panics() {
+    let mut rng = Rng(0x1234_5678_9ABC_DEF1);
+    let tss = [
+        uid::JPEG_BASELINE,
+        uid::MPEG4_HP41,
+        "1.2.840.10008.1.2.5",
+        uid::EXPLICIT_VR_LE,
+    ];
+    for _ in 0..20_000 {
+        let nfrags = (rng.next() % 6) as usize;
+        let frags: Vec<Vec<u8>> = (0..nfrags)
+            .map(|_| {
+                let n = (rng.next() % 40) as usize;
+                (0..n).map(|_| rng.next() as u8).collect()
+            })
+            .collect();
+        let mut ds = encapsulated(frags);
+        ds.set_str(
+            t::NUMBER_OF_FRAMES,
+            ["", "1", "2", "3", "7", "0"][(rng.next() % 6) as usize],
+        );
+        let (ts, policy) = (
+            tss[(rng.next() % 4) as usize],
+            [
+                MultiFrame::Video,
+                MultiFrame::AllFrames,
+                MultiFrame::FirstFrame,
+            ][(rng.next() % 3) as usize],
+        );
+        let r = std::panic::catch_unwind(|| {
+            let _ = convert_dataset(
+                "x",
+                ts,
+                &ds,
+                Options {
+                    multi_frame: policy,
+                },
+            );
+        });
+        assert!(r.is_ok(), "Panic bei ts={ts} policy={policy:?}");
+    }
+}

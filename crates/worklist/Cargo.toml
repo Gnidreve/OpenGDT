@@ -4,6 +4,7 @@ description = "Modality Worklist: GDT-Patient → DICOM-Worklist-Eintrag, Ablage
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+rust-version.workspace = true
 
 [dependencies]
 opengdt-gdt = { path = "../gdt" }

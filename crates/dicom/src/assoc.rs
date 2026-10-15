@@ -46,8 +46,14 @@ pub struct Association<S: Read + Write = TcpStream> {
     pub called_ae: String,
     /// (Context-ID, Abstract Syntax) der vorgeschlagenen/verhandelten Contexts.
     pub abstract_syntaxes: Vec<(u8, String)>,
+    /// Obergrenze für eine einzelne empfangene Nachricht (Command oder Datensatz) in Bytes. Größere
+    /// Nachrichten beenden die Association – sonst könnte ein Client den Speicher füllen.
+    pub max_message_bytes: usize,
     next_message_id: u16,
 }
+
+/// Standardlimit: großzügig für Cine-Clips, aber unterhalb des Speichers eines kleinen Pi.
+pub const DEFAULT_MAX_MESSAGE_BYTES: usize = 512 * 1024 * 1024;
 
 impl<S: Read + Write> Association<S> {
     pub fn new(
@@ -64,6 +70,7 @@ impl<S: Read + Write> Association<S> {
             calling_ae,
             called_ae,
             abstract_syntaxes: Vec::new(),
+            max_message_bytes: DEFAULT_MAX_MESSAGE_BYTES,
             next_message_id: 1,
         }
     }
@@ -165,6 +172,11 @@ impl<S: Read + Write> Association<S> {
                     for pdv in pdvs {
                         let ctx = pdv.context_id;
                         if pdv.is_command {
+                            if command_bytes.len() + pdv.data.len() > self.max_message_bytes {
+                                return Err(Error::Protocol(
+                                    "Command überschreitet das Größenlimit".into(),
+                                ));
+                            }
                             command_bytes.extend_from_slice(&pdv.data);
                             if pdv.is_last {
                                 let c = Dataset::decode(&command_bytes, false)?;
@@ -181,6 +193,12 @@ impl<S: Read + Write> Association<S> {
                                 }
                             }
                         } else {
+                            if data_bytes.len() + pdv.data.len() > self.max_message_bytes {
+                                return Err(Error::Protocol(format!(
+                                    "Datensatz überschreitet das Größenlimit von {} Bytes",
+                                    self.max_message_bytes
+                                )));
+                            }
                             data_bytes.extend_from_slice(&pdv.data);
                             if pdv.is_last {
                                 let c = command

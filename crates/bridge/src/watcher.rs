@@ -17,6 +17,9 @@ pub struct Watcher {
     cfg: Arc<Config>,
     worklist: Arc<WorklistDir>,
     seen: HashMap<PathBuf, (u64, Option<SystemTime>)>,
+    /// Dateien, die verarbeitet wurden, sich aber nicht entfernen/verschieben ließen (z. B. fehlende Rechte).
+    /// Sie werden übersprungen, bis sich Größe oder Änderungszeit ändern – sonst würden sie endlos neu verarbeitet.
+    handled: HashMap<PathBuf, (u64, Option<SystemTime>)>,
 }
 
 impl Watcher {
@@ -26,6 +29,7 @@ impl Watcher {
             cfg,
             worklist,
             seen: HashMap::new(),
+            handled: HashMap::new(),
         })
     }
 
@@ -57,9 +61,20 @@ impl Watcher {
             };
             let sig = (md.len(), md.modified().ok());
             present.push(path.clone());
+            if self.handled.get(&path) == Some(&sig) {
+                continue;
+            }
+            self.handled.remove(&path);
             if self.seen.get(&path) == Some(&sig) {
                 if self.process(&path) {
                     created += 1;
+                }
+                if path.exists() {
+                    crate::error!(
+                        "GDT-Datei {} blieb liegen – wird nicht erneut verarbeitet, bis sie sich ändert (Rechte des Ordners prüfen)",
+                        path.display()
+                    );
+                    self.handled.insert(path.clone(), sig);
                 }
                 self.seen.remove(&path);
             } else {
@@ -67,6 +82,7 @@ impl Watcher {
             }
         }
         self.seen.retain(|p, _| present.contains(p));
+        self.handled.retain(|p, _| present.contains(p));
         created
     }
 

@@ -33,6 +33,8 @@ server.run(); // blockiert; stop_flag() zum Beenden
 ## Grenzen
 
 * Nur Little Endian; kein Deflate; keine Character Sets außer ASCII/Latin-1/UTF-8 beim Lesen.
-* Ein C-STORE-Datensatz wird komplett im Speicher gepuffert (große Cine-Clips = große Puffer).
+* Ein C-STORE-Datensatz wird komplett im Speicher gepuffert (große Cine-Clips = große Puffer). Obergrenzen gegen
+  böswillige/fehlerhafte Gegenstellen: **512 MiB** je Nachricht (`Association::max_message_bytes`), **1 MiB** je PDU,
+  Sequenz-Verschachtelung höchstens **32** Ebenen.
 * Kein TLS, keine Nutzerauthentifizierung, kein C-MOVE/C-GET/Query-Retrieve, kein N-CREATE/N-SET (MPPS).
 * Das Wörterbuch enthält nur die Tags, die das Projekt benutzt; unbekannte Tags sind `UN`.
