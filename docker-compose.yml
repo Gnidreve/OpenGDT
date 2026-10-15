@@ -57,16 +57,42 @@ services:
         condition: service_started
     ports:
       - "11112:11112"          # eigener DICOM-Listener der Bridge (Alternative zu Orthanc, siehe docker/README.md)
+    healthcheck:             # häufig prüfen, damit `info` seine Ausgabe schnell nach dem Start zeigen kann
+      test: ["CMD", "opengdt-bridge", "echo", "127.0.0.1:11112"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+      start_period: 3s
     environment:
       OPENGDT_UTC_OFFSET_MINUTES: ${UTC_OFFSET_MINUTES:-60}
       OPENGDT_STATION_AE: ${DEVICE_AE:-}
-      OPENGDT_PVS_EXPORT_PREFIX: ${PVS_EXPORT_PREFIX:-/data/export}
+      OPENGDT_PVS_EXPORT_PREFIX: ${PVS_EXPORT_PREFIX:-${PWD}/data/export}
       OPENGDT_GDT_RESULT_FILENAME: ${GDT_RESULT_FILENAME:-}
       OPENGDT_ORTHANC_USER: bridge
       OPENGDT_ORTHANC_PASSWORD_FILE: /secrets/orthanc-password
     volumes:
       - ./data:/data
       - bridge-secrets:/secrets:ro
+
+  # Gibt nach dem Start alle Zugangs-/Verbindungsdaten aus (siehe docker/banner.sh) und endet danach.
+  info:
+    image: ${RUNTIME_IMAGE:-debian:bookworm-slim}
+    network_mode: host                         # nur um die IP-Adresse des Pi zu ermitteln
+    command: ["bash", "/banner.sh"]
+    environment:
+      HOST_DATA_DIR: ${PWD}/data
+      PVS_EXPORT_PREFIX: ${PVS_EXPORT_PREFIX:-${PWD}/data/export}
+      DEVICE_AE: ${DEVICE_AE:-}
+      GDT_RESULT_FILENAME: ${GDT_RESULT_FILENAME:-}
+    volumes:
+      - ./docker/banner.sh:/banner.sh:ro
+      - orthanc-config:/config:ro
+    depends_on:
+      orthanc:
+        condition: service_started
+      bridge:
+        condition: service_healthy
+    restart: "no"
 
 volumes:
   orthanc-db:

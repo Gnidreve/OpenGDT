@@ -11,14 +11,30 @@ Ultraschall DP-50 ──Worklist (DICOM :11112)───────────
 ## Starten
 
 ```sh
-cp .env.example .env              # anpassen: Zeitzone, AE-Titel des Geräts, Pfad für das PVS (siehe Datei)
-docker compose up -d --build      # der erste Build auf dem Pi dauert einige Minuten (Rust wird kompiliert)
-docker/smoke.sh                   # prüft Dienste, Verbindungen und GDT → Worklist
-docker/send-test-patient.sh       # legt eine Test-Anforderung ab (Patient 4711, Müller, Jürgen)
-docker compose logs -f bridge orthanc
+cp .env.example .env              # optional anpassen: Zeitzone, Pfad für das PVS (siehe Datei)
+docker compose up --build         # im Vordergrund: Logs live im Terminal; erster Build auf dem Pi dauert einige Minuten
 ```
 
-Beenden: `docker compose down`. Alles zurücksetzen: `docker compose down -v && rm -rf data`.
+Sobald alles läuft, druckt der Stack **einen Block mit allen Zugangs- und Verbindungsdaten**, getrennt nach drei Bereichen:
+**1) GNUmed**, **2) Orthanc-Weboberfläche**, **3) Ultraschallsystem** (IP des Pi, Ports, AE-Titel, die du am Gerät einträgst). Den Block gibt es
+jederzeit noch einmal mit `docker/show-credentials.sh`. Er enthält das Passwort im Klartext und steht damit auch in den Docker-Logs
+(`docker compose logs`); das ist so gewollt, damit du morgen nichts suchen musst.
+
+Weitere Befehle (in einem zweiten Terminal):
+
+```sh
+docker/smoke.sh                   # prüft Dienste, Verbindungen und GDT → Worklist
+docker/send-test-patient.sh       # legt eine Test-Anforderung ab (Patient 4711, Müller, Jürgen)
+```
+
+Beenden: `Strg+C` im Terminal bzw. `docker compose down`. Alles zurücksetzen: `docker compose down -v && rm -rf data`.
+Im Hintergrund starten geht mit `docker compose up -d --build` (Logs dann mit `docker compose logs -f`).
+
+### Mehrere Ultraschallgeräte
+
+Alle Geräte tragen **dieselben Serverdaten** ein (IP des Pi, Port 11112/4242, AE-Titel `OPENGDT`/`ORTHANC`). Nur der **eigene AE-Titel** jedes
+Geräts unterscheidet sich (z. B. `DP50-1`, `DP50-2`). Der Stack prüft AE-Titel nicht und hat keine Gerätezuordnung: Worklist-Einträge gelten für jedes
+Gerät, Bilder werden nach Patient/Untersuchung abgelegt, nicht nach Gerät. Sinnvoll nur, solange `DEVICE_AE` in `.env` leer bleibt.
 
 ## Am Mindray DP-50 einstellen
 

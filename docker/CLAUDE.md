@@ -18,6 +18,13 @@
   `.json` im Verzeichnis stören nicht). Die Bridge bekommt ihr Passwort nur als Datei (`orthanc_password_file`), nie als Umgebungsvariable.
   Passwörter dürfen nicht in Logs, `check-config`-Ausgabe, Repository oder `.env.example` stehen (Test `tests/cli.rs`). Passwortzeichen sind auf
   `A-Za-z0-9._-` beschränkt, weil `init.sh` die JSON-Datei mit `printf` schreibt (kein Escaping).
+* **Startblock mit allen Zugangsdaten** (`docker/banner.sh`, Dienst `info`, auch per `docker/show-credentials.sh`): drei getrennte Bereiche
+  (GNUmed, Orthanc, Ultraschallsystem), ausdrücklicher Nutzerwunsch, weil der Stack im Vordergrund (`up` ohne `-d`) laufen soll. Das Passwort
+  steht deshalb im Klartext in den Docker-Logs – bewusst akzeptiert, nicht „reparieren“. Die Bridge-Zugangsdaten gehören **nicht** in den Block.
+  Der Block erscheint erst, wenn die Bridge „healthy“ ist (Healthcheck in der Compose-Datei alle 3 s) und Port 80 offen ist. `info` läuft mit
+  Host-Netzwerk, nur um die IP des Pi zu ermitteln. Was GNUmed betrifft, steht dort nur Belegtes bzw. ausdrücklich „ungeprüft“.
+* `PVS_EXPORT_PREFIX` ist standardmäßig der **Host-Pfad** (`${PWD}/data/export`), nicht der Container-Pfad; sonst enthält die GDT-Rückmeldung
+  Pfade, die GNUmed auf dem Pi nicht findet. Der Block warnt, falls trotzdem ein `/data/…`-Pfad aktiv ist.
 * **Weboberfläche fest auf `127.0.0.1:80`** (ausdrücklicher Wunsch des Nutzers): nicht wieder variabel machen, nicht auf `0.0.0.0` öffnen.
 * Nicht ändern ohne Rückfrage: veröffentlichte Ports, Authentifizierung, Image-Quellen.
 * Nach Tests in der Sandbox aufräumen: `docker compose down -v; rm -rf data`.
