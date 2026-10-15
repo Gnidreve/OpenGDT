@@ -7,6 +7,7 @@ members = [
     "crates/store",
     "crates/convert",
     "crates/bridge",
+    "crates/profile",
 ]
 
 [workspace.package]

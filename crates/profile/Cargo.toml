@@ -1,0 +1,8 @@
+[package]
+name = "opengdt-profile"
+description = "Geräteprofile (strukturierte Abschrift von Herstellerdokumenten): JSON-Parser, Validierung, typisierte Sicht"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]

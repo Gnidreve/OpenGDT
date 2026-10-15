@@ -5,6 +5,16 @@ für DP-70, DP-70T, DP-70Vet, DP-50, DP-50T, DP-50Vet.
 
 * Daten: [`dicom-conformance.json`](dicom-conformance.json) (SOP-Klassen, Transfer Syntaxes,
   Worklist-Schlüssel, Storage-Attribute, Statuscodes, Konfigurationsparameter)
+* Quelle: [Mindray, H-046-001907-00 DP-70 DICOM Conformance Statement 1.0](https://www.mindray.com/content/dam/xpace/en_us/service-and-support/training-and-education/resource--library/technical--documents/dicom-conformance-guides-1/H-046-001907-00-DP-70-DICOM-Conformance-Statement-1.0.pdf)
+  (Stand der Abschrift, Prüfsumme und Prüfstatus: Block `meta` im JSON)
+
+### Profil aktualisieren
+
+1. Neues PDF beschaffen; SHA-256, Größe und Seitenzahl in `meta.source` eintragen (`sha256sum datei.pdf`).
+2. Daten neu abschreiben lassen (z. B. Claude das PDF lesen lassen), `meta.capture.extracted_at` (UTC) und
+   `extracted_by` setzen, `review_status` auf `unreviewed`.
+3. `cargo test --workspace`: Das Schema wird geprüft, die Bridge-Tests laufen gegen den neuen Stand.
+4. Nach menschlicher Durchsicht `review_status = "reviewed"` mit `reviewed_by`/`reviewed_at`.
 * Test gegen die Bridge: [`crates/bridge/tests/mindray_dp.rs`](../../crates/bridge/tests/mindray_dp.rs)
 
 > **Stand 2011, Erstausgabe.** Ein Conformance Statement ersetzt keinen Test mit dem echten Gerät.

@@ -1,15 +1,31 @@
 {
-  "_comment": "Maschinenlesbare Abschrift des DICOM Conformance Statement. Abgeschrieben aus dem PDF (siehe source); bei Abweichung gilt das PDF. Nicht gegen ein reales Gerät geprüft.",
-  "source": {
-    "title": "DICOM Conformance Statement for Diagnostic Ultrasound System",
-    "manufacturer": "Shenzhen Mindray Bio-Medical Electronics Co., Ltd.",
-    "part_number": "046-001907-00",
-    "document_version": "1.0",
-    "date": "2011-01-13",
-    "file": "H-046-001907-00-DP-70-DICOM-Conformance-Statement-1.0.pdf",
-    "pages": 73,
-    "models": ["DP-70", "DP-70T", "DP-70Vet", "DP-50", "DP-50T", "DP-50Vet"],
-    "caveat": "Dokument von 2011 (Erstausgabe). Das DP-50 im Feld kann abweichende Firmware und damit anderes Verhalten haben; ein Conformance Statement ersetzt keinen Test (so steht es auch in Abschnitt 3.3 des Dokuments)."
+  "meta": {
+    "schema": "opengdt-device-profile/1",
+    "profile_id": "mindray-dp",
+    "description": "DICOM-Schnittstelle des Mindray DP-70/DP-50 laut Hersteller (Conformance Statement). Maschinenlesbare Abschrift; die Tests von OpenGDT lesen diese Datei.",
+    "source": {
+      "url": "https://www.mindray.com/content/dam/xpace/en_us/service-and-support/training-and-education/resource--library/technical--documents/dicom-conformance-guides-1/H-046-001907-00-DP-70-DICOM-Conformance-Statement-1.0.pdf",
+      "title": "DICOM Conformance Statement for Diagnostic Ultrasound System",
+      "manufacturer": "Shenzhen Mindray Bio-Medical Electronics Co., Ltd.",
+      "part_number": "046-001907-00",
+      "document_version": "1.0",
+      "published": "2011-01-13",
+      "file_name": "H-046-001907-00-DP-70-DICOM-Conformance-Statement-1.0.pdf",
+      "file_sha256": "c088d6ed5c4171a67f56eef25bd3949c86c719dcaeb27437df77042af91e5904",
+      "file_bytes": 543745,
+      "pages": 73,
+      "models": ["DP-70", "DP-70T", "DP-70Vet", "DP-50", "DP-50T", "DP-50Vet"],
+      "caveat": "Dokument von 2011 (Erstausgabe). Das DP-50 im Feld kann abweichende Firmware und damit anderes Verhalten haben; ein Conformance Statement ersetzt keinen Test (so steht es auch in Abschnitt 3.3 des Dokuments)."
+    },
+    "capture": {
+      "extracted_at": "2026-10-15T16:04:51Z",
+      "extracted_by": "Claude (LLM), manuelle Abschrift aus den gerenderten PDF-Seiten; kein automatischer Textextrakt",
+      "review_status": "unreviewed",
+      "reviewed_by": null,
+      "reviewed_at": null,
+      "verified_against_device": false,
+      "update_procedure": "PDF neu beschaffen, SHA-256 und Größe eintragen, Daten neu abschreiben, extracted_at setzen, review_status auf 'unreviewed' lassen, 'cargo test --workspace' ausführen."
+    }
   },
   "implementation": {
     "class_uid": "1.2.156.112536.1.1150.0.1.0.1",

@@ -9,6 +9,7 @@ dependencies = [
  "opengdt-convert",
  "opengdt-dicom",
  "opengdt-gdt",
+ "opengdt-profile",
  "opengdt-store",
  "opengdt-worklist",
 ]
@@ -26,6 +27,10 @@ version = "0.1.0"
 
 [[package]]
 name = "opengdt-gdt"
+version = "0.1.0"
+
+[[package]]
+name = "opengdt-profile"
 version = "0.1.0"
 
 [[package]]

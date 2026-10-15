@@ -19,3 +19,6 @@ opengdt-convert = { path = "../convert" }
 [lib]
 name = "opengdt_bridge"
 path = "src/lib.rs"
+
+[dev-dependencies]
+opengdt-profile = { path = "../profile" }
