@@ -80,12 +80,12 @@ class CheckSources(unittest.TestCase):
         cs.pdf_pages = self._pages
 
     def write_profile(self, data):
-        open(self.path, "w", encoding="utf-8").write(
-            PROFILE % {"url": self.url, "sha": hashlib.sha256(data).hexdigest(), "size": len(data)}
-        )
+        with open(self.path, "w", encoding="utf-8") as f:
+            f.write(PROFILE % {"url": self.url, "sha": hashlib.sha256(data).hexdigest(), "size": len(data)})
 
     def text(self):
-        return open(self.path, encoding="utf-8").read()
+        with open(self.path, encoding="utf-8") as f:
+            return f.read()
 
     def test_unchanged_source_is_ok_and_file_untouched(self):
         before = self.text()
@@ -133,7 +133,8 @@ class CheckSources(unittest.TestCase):
 
     def test_wrong_bytes_with_same_hash_is_fixed_quietly(self):
         broken = self.text().replace(f'"file_bytes": {len(PDF_V1)}', '"file_bytes": 1')
-        open(self.path, "w", encoding="utf-8").write(broken)
+        with open(self.path, "w", encoding="utf-8") as f:
+            f.write(broken)
         _, status, _ = cs.check_one(self.path, update=True)
         self.assertEqual(status, cs.FIXED_META)
         j = json.loads(self.text())["meta"]

@@ -94,7 +94,8 @@ def rewrite(text, sha=None, size=None, pages=None, changed_at=None):
 
 
 def check_one(path, update, fetcher=fetch):
-    text = open(path, encoding="utf-8").read()
+    with open(path, encoding="utf-8") as f:
+        text = f.read()
     meta = json.loads(text)["meta"]
     src = meta["source"]
     pid = meta.get("profile_id", os.path.basename(os.path.dirname(path)))
@@ -111,7 +112,8 @@ def check_one(path, update, fetcher=fetch):
             msg += f", Seiten {src['pages']} → {pages}"
         if update:
             new = rewrite(text, sha, size, pages, now_utc())
-            open(path, "w", encoding="utf-8").write(new)
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(new)
             msg += " – Metadaten aktualisiert, Status auf unreviewed; Abschrift muss neu erstellt werden"
         return pid, CHANGED, msg
     drift = []
@@ -121,7 +123,8 @@ def check_one(path, update, fetcher=fetch):
         drift.append(f"pages {src['pages']} → {pages}")
     if drift:
         if update:
-            open(path, "w", encoding="utf-8").write(rewrite(text, None, size, pages))
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(rewrite(text, None, size, pages))
         return pid, FIXED_META, "gleiche Datei, aber Metadaten stimmten nicht: " + ", ".join(drift)
     return pid, OK, f"sha256 {sha[:12]}… unverändert"
 
