@@ -7,6 +7,6 @@
 * Bekannte Unschärfen im Quelldokument (nicht „korrigieren“, sondern so lassen und annotieren):
   VR von (0010,21B0) als `US` (Standard: `LT`); Tabelle 1 nennt SCP=Yes, Abschnitt 5 nur SCU;
   unklar, ob die Transfer Syntaxes in einem oder mehreren Presentation Contexts vorgeschlagen werden.
-* `crates/bridge/tests/mindray_dp.rs` baut seine Abfragen und Erwartungen **aus dem JSON** (Worklist-Schlüssel,
+* `crates/bridge/tests/device_profiles.rs` baut seine Abfragen und Erwartungen **aus dem JSON** (Worklist-Schlüssel,
   Transfer Syntaxes, SOP-Klassen). Der Test hat reale Fehler gefunden (Return-Key-Sequenzen, Implicit-VR-Sequenzen).
 * Pilotgerät des Nutzers: **DP-50**, nur „theoretisch zum Testen“ verfügbar; Firmware unbekannt.

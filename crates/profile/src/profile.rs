@@ -503,6 +503,49 @@ mod tests {
         assert!(p.find_sop_class("worklist").is_some());
     }
 
+    /// Alle eingecheckten Profile unter `devices/*/dicom-conformance.json` müssen gültig sein.
+    #[test]
+    fn every_committed_device_profile_is_valid_and_unique() {
+        let devices = concat!(env!("CARGO_MANIFEST_DIR"), "/../../devices");
+        let mut ids = Vec::new();
+        for e in std::fs::read_dir(devices).unwrap() {
+            let f = e.unwrap().path().join("dicom-conformance.json");
+            if !f.is_file() {
+                continue;
+            }
+            let p = Profile::load(&f).unwrap_or_else(|e| panic!("{}: {e:#?}", f.display()));
+            let m = p.meta();
+            assert!(!p.worklist_keys().is_empty(), "{}", f.display());
+            assert!(!p.storage_contexts().is_empty(), "{}", f.display());
+            ids.push(m.profile_id);
+        }
+        assert!(ids.len() >= 2, "erwartet: DP-50 und Consona N: {ids:?}");
+        let mut sorted = ids.clone();
+        sorted.sort();
+        sorted.dedup();
+        assert_eq!(sorted.len(), ids.len(), "profile_id doppelt: {ids:?}");
+    }
+
+    #[test]
+    fn consona_profile_has_mpps_and_mpeg2() {
+        let p = Profile::load(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../devices/mindray-consona-n/dicom-conformance.json"
+        ))
+        .unwrap_or_else(|e| panic!("{e:#?}"));
+        assert_eq!(p.meta().profile_id, "mindray-consona-n");
+        assert!(p.find_sop_class("performed procedure").is_some());
+        let mf = p
+            .storage_contexts()
+            .into_iter()
+            .find(|c| c.uid == "1.2.840.10008.5.1.4.1.1.3.1")
+            .unwrap();
+        assert!(mf
+            .transfer_syntaxes
+            .iter()
+            .any(|t| t.uid == "1.2.840.10008.1.2.4.100"));
+    }
+
     #[test]
     fn typed_view_exposes_nested_keys() {
         let p = Profile::load(MINDRAY).unwrap();

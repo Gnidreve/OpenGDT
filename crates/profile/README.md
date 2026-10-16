@@ -1,7 +1,7 @@
 # opengdt-profile
 
 Liest **Geräteprofile**: maschinenlesbare Abschriften von Herstellerdokumenten (z. B. DICOM
-Conformance Statements) mit Quellenangabe und Zeitstempel. Aktuell: [`devices/mindray-dp`](../../devices/mindray-dp/README.md).
+Conformance Statements) mit Quellenangabe und Zeitstempel. Aktuell: [`devices/mindray-dp`](../../devices/mindray-dp/README.md) und [`devices/mindray-consona-n`](../../devices/mindray-consona-n/README.md).
 
 * `json` – eigener JSON-Parser (RFC 8259, std-only): Fehlerpositionen, Tiefenlimit, doppelte Schlüssel
   sind Fehler, Schlüsselreihenfolge bleibt erhalten.
@@ -37,7 +37,7 @@ let p = opengdt_profile::Profile::load(path)?;
 for c in p.storage_contexts() { /* gegen die Bridge prüfen */ }
 ```
 
-Beispiel: [`crates/bridge/tests/mindray_dp.rs`](../bridge/tests/mindray_dp.rs).
+Beispiel: [`crates/bridge/tests/device_profiles.rs`](../bridge/tests/device_profiles.rs).
 
 ## Grenzen
 

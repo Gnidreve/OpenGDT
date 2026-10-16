@@ -72,9 +72,9 @@ OPENGDT_DICOM_PORT=14242 OPENGDT_DICOM_AE=ORTHANC \
   || { echo "--- Bridge-Log ---"; cat "$WORK/bridge.log"; echo "--- Orthanc-Log ---"; tail -40 "$WORK/orthanc.log"; exit 1; }
 # Die komplette Geräteabfrage des DP-50 (aus dem Profil) gegen Orthanc: Worklist-Eintrag aus dem Test oben ist noch da.
 OPENGDT_EXTERNAL_MWL=127.0.0.1:14242 OPENGDT_QUERY_DATE="$(date -u +%Y%m%d)" \
-  cargo test --manifest-path "$ROOT/Cargo.toml" -p opengdt-bridge --test mindray_dp device_query_against_external -- --nocapture 2>&1 | grep -E "^test |panicked|Schlüssel|Treffer|result:" \
+  cargo test --manifest-path "$ROOT/Cargo.toml" -p opengdt-bridge --test device_profiles device_query_against_external -- --nocapture 2>&1 | grep -E "^test |panicked|Schlüssel|Treffer|result:" \
   || true
 OPENGDT_EXTERNAL_MWL=127.0.0.1:14242 OPENGDT_QUERY_DATE="$(date -u +%Y%m%d)" \
-  cargo test --quiet --manifest-path "$ROOT/Cargo.toml" -p opengdt-bridge --test mindray_dp device_query_against_external >/dev/null \
+  cargo test --quiet --manifest-path "$ROOT/Cargo.toml" -p opengdt-bridge --test device_profiles device_query_against_external >/dev/null \
   || { echo "FEHLER: DP-50-Abfrage gegen Orthanc"; tail -30 "$WORK/orthanc.log"; exit 1; }
 echo "ORTHANC-E2E OK"

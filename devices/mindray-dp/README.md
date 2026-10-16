@@ -15,7 +15,7 @@ für DP-70, DP-70T, DP-70Vet, DP-50, DP-50T, DP-50Vet.
    `extracted_by` setzen, `review_status` auf `unreviewed`.
 3. `cargo test --workspace`: Das Schema wird geprüft, die Bridge-Tests laufen gegen den neuen Stand.
 4. Nach menschlicher Durchsicht `review_status = "reviewed"` mit `reviewed_by`/`reviewed_at`.
-* Test gegen die Bridge: [`crates/bridge/tests/mindray_dp.rs`](../../crates/bridge/tests/mindray_dp.rs)
+* Test gegen die Bridge: [`crates/bridge/tests/device_profiles.rs`](../../crates/bridge/tests/device_profiles.rs)
 
 > **Stand 2011, Erstausgabe.** Ein Conformance Statement ersetzt keinen Test mit dem echten Gerät.
 

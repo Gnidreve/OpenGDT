@@ -1,9 +1,10 @@
-//! Prüft die Bridge gegen das **Geräteprofil** des Mindray DP-70/DP-50.
+//! Prüft die Bridge gegen **jedes Geräteprofil** unter `devices/*/dicom-conformance.json`
+//! (aktuell Mindray DP-70/DP-50 und Consona N6–N9).
 //!
-//! Alle Erwartungen werden aus `devices/mindray-dp/dicom-conformance.json` abgeleitet
-//! (Worklist-Schlüssel, vorgeschlagene Transfer Syntaxes, SOP-Klassen). Wird die Datei
-//! aus einer neueren Fassung des Herstellerdokuments neu erzeugt, laufen diese Tests
-//! automatisch gegen den neuen Stand.
+//! Alle Erwartungen werden aus den Profilen abgeleitet (Worklist-Schlüssel, vorgeschlagene
+//! Transfer Syntaxes, SOP-Klassen). Wird eine Datei aus einer neueren Fassung des
+//! Herstellerdokuments neu erzeugt, laufen diese Tests automatisch gegen den neuen Stand;
+//! ein neuer Ordner mit Profil wird ohne Codeänderung mitgeprüft.
 
 use opengdt_bridge::config::Config;
 use opengdt_dicom::scu::{connect, ScuConfig};
@@ -14,17 +15,42 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
-const PROFILE: &str = concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../../devices/mindray-dp/dicom-conformance.json"
-);
+const DEVICES: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../devices");
 
-fn profile() -> Profile {
-    Profile::load(PROFILE).unwrap_or_else(|e| panic!("Profil ungültig:\n{}", e.join("\n")))
+/// Alle Profile unter `devices/*/dicom-conformance.json`, nach Ordnername sortiert.
+fn profiles() -> Vec<(String, Profile)> {
+    let mut dirs: Vec<PathBuf> = fs::read_dir(DEVICES)
+        .expect("devices/ fehlt")
+        .filter_map(|e| e.ok().map(|e| e.path()))
+        .filter(|d| d.join("dicom-conformance.json").is_file())
+        .collect();
+    dirs.sort();
+    assert!(!dirs.is_empty(), "kein Geräteprofil gefunden");
+    dirs.into_iter()
+        .map(|d| {
+            let id = d.file_name().unwrap().to_string_lossy().into_owned();
+            let p = Profile::load(d.join("dicom-conformance.json"))
+                .unwrap_or_else(|e| panic!("Profil {id} ungültig:\n{}", e.join("\n")));
+            (id, p)
+        })
+        .collect()
+}
+
+/// Macht aus `fn name(id, p) { … }` einen Test, der für jedes Profil läuft.
+macro_rules! per_profile {
+    ($(fn $name:ident($id:ident, $p:ident) $body:block)*) => {$(
+        #[test]
+        fn $name() {
+            for ($id, $p) in profiles() {
+                eprintln!("Profil {}", $id);
+                $body
+            }
+        }
+    )*};
 }
 
 fn tmp() -> PathBuf {
-    let d = std::env::temp_dir().join(format!("opengdt-dp-{}", uid::generate()));
+    let d = std::env::temp_dir().join(format!("opengdt-dev-{}", uid::generate()));
     fs::create_dir_all(&d).unwrap();
     d
 }
@@ -38,9 +64,11 @@ fn conf(root: &Path, extra: &str) -> Config {
     .unwrap()
 }
 
+const DEVICE_AE: &str = "DEVICE1";
+
 fn scu() -> ScuConfig {
     ScuConfig {
-        calling_ae: "DP50".into(),
+        calling_ae: DEVICE_AE.into(),
         called_ae: "OPENGDT".into(),
         timeout: Duration::from_secs(5),
     }
@@ -107,16 +135,15 @@ fn ids(list: &[opengdt_profile::TransferSyntax]) -> Vec<&str> {
     list.iter().map(|t| t.uid.as_str()).collect()
 }
 
-#[test]
-fn device_worklist_query_finds_the_entry() {
-    let p = profile();
+per_profile! {
+fn device_worklist_query_finds_the_entry(id, p) {
     let root = tmp();
     let r = bridge_with_patient(&root, "");
     let ts = p.worklist_transfer_syntaxes();
     let mut a = connect(r.dicom_addr, &scu(), &[(uid::MWL_FIND, &ids(&ts))]).unwrap();
     // Standardverhalten laut Profil: Station-AE = eigener AE-Titel, Datum = heute
     let o = HashMap::from([
-        ((0x0040, 0x0001), "DP50".to_string()),
+        ((0x0040, 0x0001), DEVICE_AE.to_string()),
         ((0x0040, 0x0002), "20261015".to_string()),
     ]);
     let (status, matches) = a.find(&build_query(&p.worklist_keys(), &o)).unwrap();
@@ -141,11 +168,11 @@ fn device_worklist_query_finds_the_entry() {
     r.shutdown();
     let _ = fs::remove_dir_all(root);
 }
+}
 
-#[test]
-fn every_single_profile_key_is_accepted_as_return_key() {
+per_profile! {
+fn every_single_profile_key_is_accepted_as_return_key(id, p) {
     // Jeder Schlüssel des Profils einzeln (leer = Universal Matching) darf den Treffer nie verhindern.
-    let p = profile();
     let root = tmp();
     let r = bridge_with_patient(&root, "");
     let ts = p.worklist_transfer_syntaxes();
@@ -177,10 +204,10 @@ fn every_single_profile_key_is_accepted_as_return_key() {
     r.shutdown();
     let _ = fs::remove_dir_all(root);
 }
+}
 
-#[test]
-fn device_worklist_query_with_patient_filters() {
-    let p = profile();
+per_profile! {
+fn device_worklist_query_with_patient_filters(id, p) {
     let root = tmp();
     let r = bridge_with_patient(&root, "");
     let a_ts = [uid::IMPLICIT_VR_LE];
@@ -194,7 +221,7 @@ fn device_worklist_query_with_patient_filters() {
         let o = HashMap::from([
             ((0x0010, 0x0010), name.to_string()),
             ((0x0010, 0x0020), id.to_string()),
-            ((0x0040, 0x0001), "DP50".to_string()),
+            ((0x0040, 0x0001), DEVICE_AE.to_string()),
         ]);
         let (_, m) = a.find(&build_query(&p.worklist_keys(), &o)).unwrap();
         assert_eq!(m.len(), expect, "Name={name:?} ID={id:?}");
@@ -202,6 +229,7 @@ fn device_worklist_query_with_patient_filters() {
     a.release().unwrap();
     r.shutdown();
     let _ = fs::remove_dir_all(root);
+}
 }
 
 /// Erste Transfer Syntax der Liste, die die Bridge überhaupt annimmt (nie Big Endian/Deflate).
@@ -223,9 +251,8 @@ fn negotiate(extra: &str, sop: &str, proposed: &[&str]) -> Option<String> {
     ts
 }
 
-#[test]
-fn every_storage_context_of_the_device_is_accepted_with_default_policy() {
-    let p = profile();
+per_profile! {
+fn every_storage_context_of_the_device_is_accepted_with_default_policy(id, p) {
     let contexts = p.storage_contexts();
     assert!(!contexts.is_empty());
     for c in &contexts {
@@ -240,10 +267,10 @@ fn every_storage_context_of_the_device_is_accepted_with_default_policy() {
         );
     }
 }
+}
 
-#[test]
-fn every_storage_sop_class_marked_scu_is_accepted() {
-    let p = profile();
+per_profile! {
+fn every_storage_sop_class_marked_scu_is_accepted(id, p) {
     let root = tmp();
     let r = opengdt_bridge::start(conf(&root, "")).unwrap();
     for c in p
@@ -258,10 +285,10 @@ fn every_storage_sop_class_marked_scu_is_accepted() {
     r.shutdown();
     let _ = fs::remove_dir_all(root);
 }
+}
 
-#[test]
-fn storage_preference_from_config_wins_over_device_order() {
-    let p = profile();
+per_profile! {
+fn storage_preference_from_config_wins_over_device_order(id, p) {
     for c in p.storage_contexts() {
         let proposed = ids(&c.transfer_syntaxes);
         if proposed.contains(&uid::JPEG_BASELINE) {
@@ -274,10 +301,10 @@ fn storage_preference_from_config_wins_over_device_order() {
         }
     }
 }
+}
 
-#[test]
-fn storage_commitment_is_not_supported_and_must_be_disabled_on_the_device() {
-    let p = profile();
+per_profile! {
+fn storage_commitment_is_not_supported_and_must_be_disabled_on_the_device(id, p) {
     let sc = p
         .find_sop_class("commitment")
         .expect("Profil enthält Storage Commitment");
@@ -305,6 +332,57 @@ fn storage_commitment_is_not_supported_and_must_be_disabled_on_the_device() {
     r.shutdown();
     let _ = fs::remove_dir_all(root);
 }
+}
+
+per_profile! {
+fn default_query_with_empty_station_ae_finds_the_entry(id, p) {
+    // Die Consona-Reihe fragt standardmäßig mit LEEREM Scheduled Station AE Title (das DP-50 mit dem eigenen).
+    // Leer ist Universal Matching: muss sowohl ohne als auch mit konfiguriertem station_ae treffen.
+    for extra in ["", "station_ae = DEVICE1"] {
+        let root = tmp();
+        let r = bridge_with_patient(&root, extra);
+        let ts = p.worklist_transfer_syntaxes();
+        let mut a = connect(r.dicom_addr, &scu(), &[(uid::MWL_FIND, &ids(&ts))]).unwrap();
+        let o = HashMap::from([((0x0040, 0x0001), String::new())]);
+        let (status, matches) = a.find(&build_query(&p.worklist_keys(), &o)).unwrap();
+        assert_eq!(status, 0, "{id}");
+        assert_eq!(matches.len(), 1, "{id}: leerer Station-AE ({extra:?}) muss treffen");
+        a.release().unwrap();
+        r.shutdown();
+        let _ = fs::remove_dir_all(root);
+    }
+}
+}
+
+per_profile! {
+fn mpps_is_not_supported_and_must_not_be_configured_on_the_device(id, p) {
+    // Gilt nur für Profile, in denen das Gerät MPPS als SCU spricht (neuere Geräte).
+    let Some(mpps) = p.find_sop_class("performed procedure") else {
+        eprintln!("{id}: kein MPPS im Profil");
+        continue;
+    };
+    assert!(mpps.scu, "{id}: laut Profil spricht das Gerät MPPS als SCU");
+    let root = tmp();
+    let r = opengdt_bridge::start(conf(&root, "")).unwrap();
+    let a = connect(
+        r.dicom_addr,
+        &scu(),
+        &[
+            (&mpps.uid, &[uid::IMPLICIT_VR_LE]),
+            (uid::VERIFICATION, &[uid::IMPLICIT_VR_LE]),
+        ],
+    )
+    .unwrap();
+    assert!(
+        a.context_for(&mpps.uid).is_none(),
+        "{id}: Bridge bietet kein MPPS an"
+    );
+    assert!(a.context_for(uid::VERIFICATION).is_some());
+    a.release().unwrap();
+    r.shutdown();
+    let _ = fs::remove_dir_all(root);
+}
+}
 
 /// Dieselbe Geräteabfrage gegen einen **externen** Worklist-Server (z. B. Orthanc), falls
 /// `OPENGDT_EXTERNAL_MWL=host:port` gesetzt ist (`tests/orthanc/run.sh` tut das). Sonst übersprungen.
@@ -316,7 +394,13 @@ fn device_query_against_external_worklist_server() {
         eprintln!("übersprungen: OPENGDT_EXTERNAL_MWL nicht gesetzt");
         return;
     };
-    let p = profile();
+    for (id, p) in profiles() {
+        eprintln!("Profil {id}");
+        external_query(&addr, &p);
+    }
+}
+
+fn external_query(addr: &str, p: &Profile) {
     let called = std::env::var("OPENGDT_EXTERNAL_MWL_AE").unwrap_or_else(|_| "ORTHANC".into());
     let station = std::env::var("OPENGDT_STATION_AE").unwrap_or_else(|_| "MINDRAY".into());
     let date = std::env::var("OPENGDT_QUERY_DATE").unwrap_or_default();
@@ -326,7 +410,7 @@ fn device_query_against_external_worklist_server() {
         timeout: Duration::from_secs(10),
     };
     let ts = p.worklist_transfer_syntaxes();
-    let mut a = connect(addr.as_str(), &cfg, &[(uid::MWL_FIND, &ids(&ts))]).unwrap();
+    let mut a = connect(addr, &cfg, &[(uid::MWL_FIND, &ids(&ts))]).unwrap();
 
     // 1. Volle Standardabfrage des Geräts
     let o = HashMap::from([
@@ -359,7 +443,7 @@ fn device_query_against_external_worklist_server() {
         } else {
             ids(&ts)
         };
-        let mut a = connect(addr.as_str(), &cfg, &[(uid::MWL_FIND, &proposed)]).unwrap();
+        let mut a = connect(addr, &cfg, &[(uid::MWL_FIND, &proposed)]).unwrap();
         for k in p.worklist_keys() {
             if k.fixed_value.is_some() {
                 continue;
