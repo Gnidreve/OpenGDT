@@ -527,7 +527,10 @@ mod tests {
             assert!(!p.storage_contexts().is_empty(), "{}", f.display());
             ids.push(m.profile_id);
         }
-        assert!(ids.len() >= 2, "erwartet: DP-50 und Consona N: {ids:?}");
+        assert!(
+            ids.len() >= 3,
+            "erwartet: DP-50, Consona N und Z60: {ids:?}"
+        );
         let mut sorted = ids.clone();
         sorted.sort();
         sorted.dedup();

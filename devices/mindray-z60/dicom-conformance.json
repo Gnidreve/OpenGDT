@@ -1,0 +1,2094 @@
+{
+  "meta": {
+    "schema": "opengdt-device-profile/1",
+    "profile_id": "mindray-z60",
+    "description": "DICOM-Schnittstelle der Mindray Z6/Z60/Z80/Z8-Reihe laut Hersteller (Conformance Statement V1.0, 2019). Maschinenlesbare Abschrift; die Tests von OpenGDT lesen diese Datei.",
+    "source": {
+      "url": "https://www.mindray.com/content/dam/xpace/en_us/service-and-support/training-and-education/resource--library/technical--documents/dicom-conformance-guides-1/H-046-017363-00-DICOM-Conformance-Statement-.pdf",
+      "title": "DICOM Conformance Statement for Z6/Z6T/Z6S/Z6W/Z6 Pro/Z6 Expert/Z60/Z60T/Z60S/Z60W/Z60 Pro/Z60 Expert/Z60 Vet/Z6 Vet/Z80/Z80S/Z80 Pro/Z80 Expert/Z8/Z8S/Z8 Pro/Z8 Expert Diagnostic Ultrasound System",
+      "manufacturer": "Shenzhen Mindray Bio-Medical Electronics Co., Ltd.",
+      "part_number": "046-017363-00",
+      "document_version": "1.0",
+      "published": "2019-06-05",
+      "file_name": "H-046-017363-00-DICOM-Conformance-Statement-.pdf",
+      "file_sha256": "363433d961bae29fbc2c285b4f8f8669d0e8f6e81f7304a1aa6f94b0dd64e628",
+      "file_bytes": 2890508,
+      "pages": 201,
+      "models": [
+        "Z6",
+        "Z6T",
+        "Z6S",
+        "Z6W",
+        "Z6 Pro",
+        "Z6 Expert",
+        "Z6 Vet",
+        "Z60",
+        "Z60T",
+        "Z60S",
+        "Z60W",
+        "Z60 Pro",
+        "Z60 Expert",
+        "Z60 Vet",
+        "Z80",
+        "Z80S",
+        "Z80 Pro",
+        "Z80 Expert",
+        "Z8",
+        "Z8S",
+        "Z8 Pro",
+        "Z8 Expert"
+      ],
+      "caveat": "Erstausgabe V1.0 vom 05.06.2019. Die Firmware des Geräts im Feld kann abweichen; ein Conformance Statement ersetzt keinen Test (so steht es auch in Abschnitt 3.3 des Dokuments). Die Modelle Z60 Vet und Z6 Vet haben laut Fußnoten der Tabellen 1 und 3 KEINEN Worklist-, MPPS-, Query/Retrieve- und SR-Dienst. Abgeschrieben sind die Netzwerkdienste (Abschnitt 4), Media Storage (5), Zeichensätze (6), Sicherheit (7), die Storage-IOD-Tabelle (Tabelle 14) und die Worklist-Schlüssel (Tabelle 33); NICHT abgeschrieben sind die Print-Details (4.2.1.3.3), die MPPS-Attributtabelle (Tabelle 36) und die Query/Retrieve-Attribute."
+    },
+    "capture": {
+      "extracted_at": "2026-10-16T09:50:00Z",
+      "extracted_by": "Claude (LLM) aus dem Textextrakt der PDF (pdftotext -layout); Worklist-Schlüssel maschinell gegen Tabelle 33 abgeglichen (64 Tags, Reihenfolge und Tiefe gleich), Storage-Tabelle per Skript gelesen und stichprobenartig gegengelesen",
+      "review_status": "unreviewed",
+      "reviewed_by": null,
+      "reviewed_at": null,
+      "verified_against_device": false,
+      "update_procedure": "PDF neu beschaffen (die CDN von mindray.com weist Anfragen ohne Browser-Kennung mit 403 ab; devices/check_sources.py setzt eine), SHA-256, Größe und Seitenzahl eintragen, Daten neu abschreiben, extracted_at setzen, review_status auf 'unreviewed' lassen, 'cargo test --workspace' ausführen."
+    }
+  },
+  "implementation": {
+    "class_uid": "1.2.156.112536.1.1116.0.1.0.1",
+    "version_name": "MINDRAY_V1.0",
+    "max_pdu_length": {
+      "min": 16384,
+      "max": 65536,
+      "default": 32768
+    },
+    "asynchronous_operations": false,
+    "associations": "eine zur Zeit je Ziel; Storage- und Print-Aufträge laufen im selben Thread nacheinander. Als Empfänger höchstens eine gleichzeitige Association",
+    "transport": {
+      "stack": "TCP/IP (Linux)",
+      "addressing": "Zuordnung AE-Titel/IP/Port bei der Netzwerkkonfiguration durch den Servicetechniker",
+      "media": [
+        "10baseT",
+        "100baseT"
+      ]
+    },
+    "character_sets": [
+      "ISO_IR 100",
+      "ISO_IR 144",
+      "ISO_IR 101",
+      "ISO_IR 148",
+      "GB18030"
+    ],
+    "default_character_set": "je Systemsprache; Englisch, Deutsch u. a. = ISO_IR 100 (Tabelle 60)",
+    "private_sop_classes": [],
+    "private_transfer_syntaxes": [],
+    "listening": "Lokaler AE-Titel, Port und PDU-Größe sind im Dialog 'Localhost DICOM Service' einstellbar; der Empfang (Verification, Storage nur im Rahmen von Query/Retrieve, Storage-Commitment-Rückkanal) läuft dort",
+    "security_note": "keine Sicherheitsprofile; jeder Calling AE-Titel und jede IP-Adresse darf eine Association öffnen (Abschnitt 7)"
+  },
+  "sop_classes": [
+    {
+      "name": "Verification",
+      "uid": "1.2.840.10008.1.1",
+      "scu": true,
+      "scp": true
+    },
+    {
+      "name": "Ultrasound Image Storage",
+      "uid": "1.2.840.10008.5.1.4.1.1.6.1",
+      "scu": true,
+      "scp": true,
+      "note": "SCP nur im Rahmen von Query/Retrieve (Tabelle 4, Fußnote 1), sonst nicht"
+    },
+    {
+      "name": "Ultrasound Multi-frame Image Storage",
+      "uid": "1.2.840.10008.5.1.4.1.1.3.1",
+      "scu": true,
+      "scp": true,
+      "note": "SCP nur im Rahmen von Query/Retrieve (Tabelle 4, Fußnote 1), sonst nicht"
+    },
+    {
+      "name": "Secondary Capture Image Storage",
+      "uid": "1.2.840.10008.5.1.4.1.1.7",
+      "scu": true,
+      "scp": true,
+      "note": "SCP nur im Rahmen von Query/Retrieve (Tabelle 4, Fußnote 1), sonst nicht"
+    },
+    {
+      "name": "Comprehensive Structured Report Storage",
+      "uid": "1.2.840.10008.5.1.4.1.1.88.33",
+      "scu": true,
+      "scp": true,
+      "note": "SCP nur im Rahmen von Query/Retrieve (Tabelle 4, Fußnote 1), sonst nicht; nicht bei Z60 Vet / Z6 Vet"
+    },
+    {
+      "name": "Storage Commitment Push Model",
+      "uid": "1.2.840.10008.1.20.1",
+      "scu": true,
+      "scp": false
+    },
+    {
+      "name": "Basic Grayscale Print Management Meta",
+      "uid": "1.2.840.10008.5.1.1.9",
+      "scu": true,
+      "scp": false
+    },
+    {
+      "name": "Basic Color Print Management Meta",
+      "uid": "1.2.840.10008.5.1.1.18",
+      "scu": true,
+      "scp": false
+    },
+    {
+      "name": "Basic Film Session",
+      "uid": "1.2.840.10008.5.1.1.1",
+      "scu": true,
+      "scp": false
+    },
+    {
+      "name": "Basic Film Box",
+      "uid": "1.2.840.10008.5.1.1.2",
+      "scu": true,
+      "scp": false
+    },
+    {
+      "name": "Basic Grayscale Image Box",
+      "uid": "1.2.840.10008.5.1.1.4",
+      "scu": true,
+      "scp": false
+    },
+    {
+      "name": "Printer",
+      "uid": "1.2.840.10008.5.1.1.16",
+      "scu": true,
+      "scp": false
+    },
+    {
+      "name": "Print Job",
+      "uid": "1.2.840.10008.5.1.1.14",
+      "scu": true,
+      "scp": false
+    },
+    {
+      "name": "Modality Worklist Information Model - FIND",
+      "uid": "1.2.840.10008.5.1.4.31",
+      "scu": true,
+      "scp": false,
+      "note": "nicht bei Z60 Vet / Z6 Vet"
+    },
+    {
+      "name": "Modality Performed Procedure Step",
+      "uid": "1.2.840.10008.3.1.2.3.3",
+      "scu": true,
+      "scp": false,
+      "note": "nicht bei Z60 Vet / Z6 Vet"
+    },
+    {
+      "name": "Study Root Query/Retrieve Information Model - FIND",
+      "uid": "1.2.840.10008.5.1.4.1.2.2.1",
+      "scu": true,
+      "scp": false,
+      "note": "nicht bei Z60 Vet / Z6 Vet"
+    },
+    {
+      "name": "Study Root Query/Retrieve Information Model - MOVE",
+      "uid": "1.2.840.10008.5.1.4.1.2.2.2",
+      "scu": true,
+      "scp": false,
+      "note": "nicht bei Z60 Vet / Z6 Vet"
+    }
+  ],
+  "_note_sop_classes": "Tabelle 4 (Abschnitt 4.2.1.1). Als SCP nimmt das Gerät Storage nur im Rahmen von Query/Retrieve an (Fußnote 1). Für OpenGDT ist nur das Gerät als SCU relevant.",
+  "verification": {
+    "device_role": [
+      "SCU",
+      "SCP"
+    ],
+    "proposed_transfer_syntaxes": [
+      {
+        "key": "implicit_vr_le",
+        "name": "Implicit VR Little Endian",
+        "uid": "1.2.840.10008.1.2"
+      },
+      {
+        "key": "explicit_vr_le",
+        "name": "Explicit VR Little Endian",
+        "uid": "1.2.840.10008.1.2.1"
+      },
+      {
+        "key": "explicit_vr_be",
+        "name": "Explicit VR Big Endian",
+        "uid": "1.2.840.10008.1.2.2"
+      }
+    ]
+  },
+  "storage": {
+    "device_role": "SCU",
+    "proposed_contexts": [
+      {
+        "abstract_syntax": "Ultrasound Image Storage",
+        "uid": "1.2.840.10008.5.1.4.1.1.6.1",
+        "transfer_syntaxes": [
+          {
+            "key": "implicit_vr_le",
+            "name": "Implicit VR Little Endian",
+            "uid": "1.2.840.10008.1.2"
+          },
+          {
+            "key": "explicit_vr_le",
+            "name": "Explicit VR Little Endian",
+            "uid": "1.2.840.10008.1.2.1"
+          },
+          {
+            "key": "jpeg_baseline",
+            "name": "JPEG Baseline (Process 1), verlustbehaftet",
+            "uid": "1.2.840.10008.1.2.4.50"
+          },
+          {
+            "key": "explicit_vr_be",
+            "name": "Explicit VR Big Endian",
+            "uid": "1.2.840.10008.1.2.2"
+          },
+          {
+            "key": "jpeg_lossless_sv1",
+            "name": "JPEG Lossless, Non-Hierarchical, First-Order Prediction (Process 14 [Selection Value 1])",
+            "uid": "1.2.840.10008.1.2.4.70"
+          },
+          {
+            "key": "rle_lossless",
+            "name": "RLE Lossless",
+            "uid": "1.2.840.10008.1.2.5"
+          },
+          {
+            "key": "jpeg2000_lossless",
+            "name": "JPEG 2000 Image Compression (Lossless Only)",
+            "uid": "1.2.840.10008.1.2.4.90"
+          },
+          {
+            "key": "jpeg2000",
+            "name": "JPEG 2000 Image Compression",
+            "uid": "1.2.840.10008.1.2.4.91"
+          }
+        ]
+      },
+      {
+        "abstract_syntax": "Ultrasound Multi-frame Image Storage",
+        "uid": "1.2.840.10008.5.1.4.1.1.3.1",
+        "transfer_syntaxes": [
+          {
+            "key": "implicit_vr_le",
+            "name": "Implicit VR Little Endian",
+            "uid": "1.2.840.10008.1.2"
+          },
+          {
+            "key": "explicit_vr_le",
+            "name": "Explicit VR Little Endian",
+            "uid": "1.2.840.10008.1.2.1"
+          },
+          {
+            "key": "jpeg_baseline",
+            "name": "JPEG Baseline (Process 1), verlustbehaftet",
+            "uid": "1.2.840.10008.1.2.4.50"
+          },
+          {
+            "key": "explicit_vr_be",
+            "name": "Explicit VR Big Endian",
+            "uid": "1.2.840.10008.1.2.2"
+          },
+          {
+            "key": "jpeg_lossless_sv1",
+            "name": "JPEG Lossless, Non-Hierarchical, First-Order Prediction (Process 14 [Selection Value 1])",
+            "uid": "1.2.840.10008.1.2.4.70"
+          },
+          {
+            "key": "rle_lossless",
+            "name": "RLE Lossless",
+            "uid": "1.2.840.10008.1.2.5"
+          },
+          {
+            "key": "jpeg2000_lossless",
+            "name": "JPEG 2000 Image Compression (Lossless Only)",
+            "uid": "1.2.840.10008.1.2.4.90"
+          },
+          {
+            "key": "jpeg2000",
+            "name": "JPEG 2000 Image Compression",
+            "uid": "1.2.840.10008.1.2.4.91"
+          }
+        ]
+      },
+      {
+        "abstract_syntax": "Secondary Capture Image Storage",
+        "uid": "1.2.840.10008.5.1.4.1.1.7",
+        "transfer_syntaxes": [
+          {
+            "key": "implicit_vr_le",
+            "name": "Implicit VR Little Endian",
+            "uid": "1.2.840.10008.1.2"
+          },
+          {
+            "key": "explicit_vr_le",
+            "name": "Explicit VR Little Endian",
+            "uid": "1.2.840.10008.1.2.1"
+          },
+          {
+            "key": "jpeg_baseline",
+            "name": "JPEG Baseline (Process 1), verlustbehaftet",
+            "uid": "1.2.840.10008.1.2.4.50"
+          },
+          {
+            "key": "explicit_vr_be",
+            "name": "Explicit VR Big Endian",
+            "uid": "1.2.840.10008.1.2.2"
+          },
+          {
+            "key": "jpeg_lossless_sv1",
+            "name": "JPEG Lossless, Non-Hierarchical, First-Order Prediction (Process 14 [Selection Value 1])",
+            "uid": "1.2.840.10008.1.2.4.70"
+          },
+          {
+            "key": "rle_lossless",
+            "name": "RLE Lossless",
+            "uid": "1.2.840.10008.1.2.5"
+          },
+          {
+            "key": "jpeg2000_lossless",
+            "name": "JPEG 2000 Image Compression (Lossless Only)",
+            "uid": "1.2.840.10008.1.2.4.90"
+          },
+          {
+            "key": "jpeg2000",
+            "name": "JPEG 2000 Image Compression",
+            "uid": "1.2.840.10008.1.2.4.91"
+          }
+        ]
+      },
+      {
+        "abstract_syntax": "Comprehensive Structured Report Storage",
+        "uid": "1.2.840.10008.5.1.4.1.1.88.33",
+        "transfer_syntaxes": [
+          {
+            "key": "implicit_vr_le",
+            "name": "Implicit VR Little Endian",
+            "uid": "1.2.840.10008.1.2"
+          },
+          {
+            "key": "explicit_vr_le",
+            "name": "Explicit VR Little Endian",
+            "uid": "1.2.840.10008.1.2.1"
+          },
+          {
+            "key": "jpeg_baseline",
+            "name": "JPEG Baseline (Process 1), verlustbehaftet",
+            "uid": "1.2.840.10008.1.2.4.50"
+          },
+          {
+            "key": "explicit_vr_be",
+            "name": "Explicit VR Big Endian",
+            "uid": "1.2.840.10008.1.2.2"
+          },
+          {
+            "key": "jpeg_lossless_sv1",
+            "name": "JPEG Lossless, Non-Hierarchical, First-Order Prediction (Process 14 [Selection Value 1])",
+            "uid": "1.2.840.10008.1.2.4.70"
+          },
+          {
+            "key": "rle_lossless",
+            "name": "RLE Lossless",
+            "uid": "1.2.840.10008.1.2.5"
+          },
+          {
+            "key": "jpeg2000_lossless",
+            "name": "JPEG 2000 Image Compression (Lossless Only)",
+            "uid": "1.2.840.10008.1.2.4.90"
+          },
+          {
+            "key": "jpeg2000",
+            "name": "JPEG 2000 Image Compression",
+            "uid": "1.2.840.10008.1.2.4.91"
+          }
+        ]
+      }
+    ],
+    "_note_transfer_syntaxes": "Das Gerät verwendet die erste vom Server angenommene Transfer Syntax; bei komprimierten Syntaxes die im Gerät eingestellte (Compression Mode, siehe device_settings). Ob alle Syntaxes in einem oder mehreren Presentation Contexts vorgeschlagen werden, steht nicht im Dokument. Auffällig: Die Syntax-Liste des SR-Contexts enthält laut Tabelle 11 auch Bildkompressionen (so abgeschrieben).",
+    "behavior": {
+      "associations_per_send": "je Ziel eine Association zur Zeit; Storage und Print laufen im selben Thread nacheinander (nach der Übertragung ggf. weitere Associations für Storage Commitment)",
+      "queue": "Fehlgeschlagene Aufträge bleiben in einer Warteschlange und werden bei Rückkehr des Netzes automatisch wiederholt (Anzahl laut Voreinstellung); der Benutzer kann im Task-Dialog 'Retry' drücken",
+      "levels": [
+        "exam",
+        "image"
+      ],
+      "on_error_status": "Bei Refused/Error/Failure (A7xx, A9xx, Cxxx, sonst) A-ABORT und Auftrag fehlgeschlagen; Warnungen B000/B007/B006 gelten als Erfolg",
+      "automatic_send": "'Send or printing after End Exam' in der Voreinstellung: beendete Untersuchung wird automatisch an den Default-Storage-Dienst gesendet; zusätzlich Sendetaste während der Untersuchung und manuelles Senden (Bildauswahl, iStation: 'Send Exam' bzw. 'Send to')",
+      "sr_sending": "SR nur bei Untersuchungstyp Geburtshilfe, Gynäkologie, Kardiologie oder Gefäße, installiertem SR-Schlüssel, auf Untersuchungsebene, Untersuchung beendet/pausiert/abgebrochen und Storage-Dienst mit 'Attach SR when Store Images' oder 'Only Store SR'",
+      "retries": "Maximum retries einstellbar (Standard 3); Interval Time ohne Funktion",
+      "can_send_during_exam": true
+    },
+    "status_codes": [
+      {
+        "status": "Success",
+        "meaning": "Success",
+        "code": "0000"
+      },
+      {
+        "status": "Refused",
+        "meaning": "Out of resources",
+        "code": "A7xx"
+      },
+      {
+        "status": "Error",
+        "meaning": "Data set does not match SOP class",
+        "code": "A9xx"
+      },
+      {
+        "status": "Error",
+        "meaning": "Cannot understand",
+        "code": "Cxxx"
+      },
+      {
+        "status": "Failure",
+        "meaning": "Any other failure",
+        "code": "xxxx"
+      },
+      {
+        "status": "Warning",
+        "meaning": "Coercion of data elements",
+        "code": "B000"
+      },
+      {
+        "status": "Warning",
+        "meaning": "Data set does not match SOP class",
+        "code": "B007"
+      },
+      {
+        "status": "Warning",
+        "meaning": "Elements discarded",
+        "code": "B006"
+      }
+    ],
+    "communication_failure": "Timeout: A-ABORT, Auftrag fehlgeschlagen. Abbruch durch Gegenstelle/Netz: Auftrag fehlgeschlagen. Beides wird im Task-Management gemeldet",
+    "photometric_interpretation_by_transfer_syntax": [
+      {
+        "condition": "unkomprimiert, Farbe",
+        "value": "RGB"
+      },
+      {
+        "condition": "unkomprimiert, Graustufen",
+        "value": "MONOCHROME2"
+      },
+      {
+        "condition": "JPEG (Baseline)",
+        "value": "YBR_FULL_422"
+      },
+      {
+        "condition": "JPEG Lossless",
+        "value": "RGB"
+      },
+      {
+        "condition": "RLE Lossless",
+        "value": "YBR_FULL",
+        "planar_configuration": 1
+      },
+      {
+        "condition": "JPEG 2000",
+        "value": "YBR_ICT"
+      },
+      {
+        "condition": "JPEG 2000 Lossless",
+        "value": "YBR_RCT"
+      }
+    ],
+    "pixel_format": {
+      "bits_allocated": 8,
+      "bits_stored": 8,
+      "high_bit": 7,
+      "pixel_representation": 0,
+      "samples_per_pixel": [
+        1,
+        3
+      ],
+      "rows_columns": "AUTO (vom Gerät gesetzt)",
+      "burned_in_annotation": "YES",
+      "lossy_image_compression": "Tabelle 14: 'Not used if image is uncompressed; support JPEG baseline, JPEG Lossless, RLE Lossless, JPEG 2000 … process1 and set it to 01' (Wortlaut mehrdeutig; vermutlich '01' bei verlustbehafteter Kompression)"
+    },
+    "device_settings": [
+      "Device, Service name, AE Title and Port",
+      "Timeout",
+      "Maximum retries (Standard 3)",
+      "Interval Time (ohne Funktion)",
+      "Compression Mode, Compression Ratio",
+      "Color Mode (Color, Mixed, Gray)",
+      "Allow Multiframe",
+      "Max Framerate (25, 30, 35, full oder Wert)",
+      "SR Storage Option (Attach SR when Store Images / Only Store SR / Not Store SR)",
+      "Default Service Status (Y/N)"
+    ],
+    "opengdt_status": "Die Bridge nimmt alle hier vorgeschlagenen Storage-SOP-Klassen an (Test) und wandelt unkomprimierte Bilder (Implicit/Explicit LE) und JPEG Baseline in Dateien um. JPEG Lossless, RLE und JPEG 2000 werden NICHT umgewandelt; das Original bleibt im Archiv, im PVS kommt nichts an. Die komprimierte Syntax richtet sich nach dem Compression Mode im Gerät (laut Dokument 'user configured'; welche Werte es gibt, steht nicht im Dokument): auf JPEG Lossy (Baseline) oder unkomprimiert stellen. Mit storage_transfer_syntaxes = jpeg-baseline, explicit-le in der Bridge-Konfiguration wird die Aushandlung dorthin gelenkt. Anders als die Consona-N-Reihe kein MPEG2 und kein Doppler-Audio."
+  },
+  "worklist": {
+    "device_role": "SCU",
+    "abstract_syntax": {
+      "name": "Modality Worklist Information Model - FIND",
+      "uid": "1.2.840.10008.5.1.4.31"
+    },
+    "proposed_transfer_syntaxes": [
+      {
+        "key": "implicit_vr_le",
+        "name": "Implicit VR Little Endian",
+        "uid": "1.2.840.10008.1.2"
+      },
+      {
+        "key": "explicit_vr_le",
+        "name": "Explicit VR Little Endian",
+        "uid": "1.2.840.10008.1.2.1"
+      },
+      {
+        "key": "explicit_vr_be",
+        "name": "Explicit VR Big Endian",
+        "uid": "1.2.840.10008.1.2.2"
+      }
+    ],
+    "matching_types": [
+      "Single Value",
+      "Wildcard (? und *)"
+    ],
+    "behavior": {
+      "query": "automatisch beim Öffnen der Worklist, wenn genau ein Worklist-Server als Default gesetzt ist (Modality: zuletzt benutzter Wert, Exam Date heute, Scheduled Station AE Title: eigener AE-Titel); sonst manuell mit frei wählbaren Schlüsseln. Dokument 4.1.2.5 nennt für die Standardabfrage 'Modality US, Exam Date today, Scheduled Station AE Title blank', Tabelle 33 dagegen 'default set to your AE title': Widerspruch im Quelldokument, beides wird von der Bridge bedient",
+      "supports": [
+        "Broad Query"
+      ],
+      "association": "eine Association je Abfrage (Open, C-FIND, Pending-Antworten, Close)",
+      "user_settable_keys": [
+        "Patient Name",
+        "Patient ID",
+        "Accession Number",
+        "Requested Procedure ID",
+        "Worklist Server",
+        "Exam Date",
+        "Modality Type",
+        "Scheduled Station AE Title"
+      ],
+      "default_station_ae_key": "eigener AE-Titel (Tabelle 33) bzw. leer (Abschnitt 4.1.2.5) – widersprüchlich",
+      "default_date_key": "heutiges Datum",
+      "result_memory": "nicht angegeben; Ergebnisliste lässt sich sortieren und lokal filtern",
+      "unexpected_attributes": "zusätzliche Attribute in der Antwort werden ignoriert; nicht unterstützte Return Keys werden mit Nullwert belegt; Treffer, die wegen nicht unterstützter optionaler Matching Keys nicht passen, werden ignoriert; Duplikate werden nicht gefiltert",
+      "no_match": "Dialog mit möglichen Gründen",
+      "availability": "nicht bei Z60 Vet / Z6 Vet"
+    },
+    "keys": [
+      {
+        "tag": "0010,0010",
+        "vr": "PN",
+        "name": "Patient's Name",
+        "matching": [
+          "S",
+          "*",
+          "?"
+        ],
+        "return": true,
+        "note": "konfigurierbar; Platzhalter ? und * möglich"
+      },
+      {
+        "tag": "0010,0020",
+        "vr": "LO",
+        "name": "Patient ID",
+        "matching": [
+          "S",
+          "*",
+          "?"
+        ],
+        "return": true,
+        "note": "konfigurierbar"
+      },
+      {
+        "tag": "0010,1000",
+        "vr": "LO",
+        "name": "Other Patient IDs",
+        "return": true
+      },
+      {
+        "tag": "0010,0030",
+        "vr": "DA",
+        "name": "Patient's Birth Date",
+        "return": true
+      },
+      {
+        "tag": "0010,0032",
+        "vr": "TM",
+        "name": "Patient's Birth Time",
+        "return": true
+      },
+      {
+        "tag": "0010,0040",
+        "vr": "CS",
+        "name": "Patient's Sex",
+        "return": true
+      },
+      {
+        "tag": "0010,1020",
+        "vr": "DS",
+        "name": "Patient's Size",
+        "return": true
+      },
+      {
+        "tag": "0010,1030",
+        "vr": "DS",
+        "name": "Patient's Weight",
+        "return": true
+      },
+      {
+        "tag": "0010,2160",
+        "vr": "SH",
+        "name": "Ethnic Group",
+        "return": true
+      },
+      {
+        "tag": "0010,4000",
+        "vr": "LT",
+        "name": "Patient Comments",
+        "return": true
+      },
+      {
+        "tag": "0040,3001",
+        "vr": "LO",
+        "name": "Confidentiality constraint on patient data Description",
+        "return": true
+      },
+      {
+        "tag": "0010,2000",
+        "vr": "LO",
+        "name": "Medical Alerts",
+        "return": true
+      },
+      {
+        "tag": "0010,2110",
+        "vr": "LO",
+        "name": "Contrast Allergies",
+        "return": true
+      },
+      {
+        "tag": "0010,21B0",
+        "vr": "US",
+        "name": "Additional Patient's History",
+        "return": true,
+        "note": "VR laut Dokument US (Standard: LT), so übernommen"
+      },
+      {
+        "tag": "0010,21C0",
+        "vr": "US",
+        "name": "Pregnancy Status",
+        "return": true
+      },
+      {
+        "tag": "0010,21D0",
+        "vr": "DA",
+        "name": "Last Menstrual Date",
+        "return": true
+      },
+      {
+        "tag": "0038,0050",
+        "vr": "LO",
+        "name": "Special Needs",
+        "return": true
+      },
+      {
+        "tag": "0038,0500",
+        "vr": "LO",
+        "name": "Patient State",
+        "return": true
+      },
+      {
+        "tag": "0008,1120",
+        "vr": "SQ",
+        "name": "Referenced Patient Sequence",
+        "return": true
+      },
+      {
+        "tag": "0038,0010",
+        "vr": "LO",
+        "name": "Admission ID",
+        "return": true
+      },
+      {
+        "tag": "0038,0300",
+        "vr": "LO",
+        "name": "Current Patient Location",
+        "return": true
+      },
+      {
+        "tag": "0008,1080",
+        "vr": "LO",
+        "name": "Admitting Diagnoses Description",
+        "return": true
+      },
+      {
+        "tag": "0040,0100",
+        "vr": "SQ",
+        "name": "Scheduled Procedure Step Sequence",
+        "return": true,
+        "items": [
+          {
+            "tag": "0008,0060",
+            "vr": "CS",
+            "name": "Modality",
+            "matching": [
+              "S"
+            ],
+            "note": "konfigurierbar; Standard = zuletzt benutzter Wert (anders als beim DP-50/N-Reihe mit US)",
+            "fixed_value": "US"
+          },
+          {
+            "tag": "0032,1070",
+            "vr": "LO",
+            "name": "Requested Contrast Agent",
+            "return": true
+          },
+          {
+            "tag": "0040,0001",
+            "vr": "AE",
+            "name": "Scheduled Station AE Title",
+            "matching": [
+              "S"
+            ],
+            "return": true,
+            "note": "konfigurierbar, Standard = eigener AE-Titel des Geräts (wie beim DP-50)"
+          },
+          {
+            "tag": "0040,0002",
+            "vr": "DA",
+            "name": "Scheduled Procedure Step Start Date",
+            "matching": [
+              "S"
+            ],
+            "return": true,
+            "note": "konfigurierbar, Standard = heute"
+          },
+          {
+            "tag": "0040,0003",
+            "vr": "TM",
+            "name": "Scheduled Procedure Step Start Time",
+            "return": true
+          },
+          {
+            "tag": "0040,0004",
+            "vr": "DA",
+            "name": "Scheduled Procedure Step End Date",
+            "return": true
+          },
+          {
+            "tag": "0040,0005",
+            "vr": "TM",
+            "name": "Scheduled Procedure Step End Time",
+            "return": true
+          },
+          {
+            "tag": "0040,0006",
+            "vr": "PN",
+            "name": "Scheduled Performing Physician's Name",
+            "return": true
+          },
+          {
+            "tag": "0040,0007",
+            "vr": "LO",
+            "name": "Scheduled Procedure Step Description",
+            "return": true
+          },
+          {
+            "tag": "0040,0008",
+            "vr": "SQ",
+            "name": "Scheduled Protocol Code Sequence",
+            "return": true,
+            "items": [
+              {
+                "tag": "0008,0100",
+                "vr": "SH",
+                "name": "Code Value",
+                "return": true
+              },
+              {
+                "tag": "0008,0102",
+                "vr": "SH",
+                "name": "Coding Scheme Designator",
+                "return": true
+              },
+              {
+                "tag": "0008,0103",
+                "vr": "SH",
+                "name": "Coding Scheme Version",
+                "return": true
+              },
+              {
+                "tag": "0008,0104",
+                "vr": "LO",
+                "name": "Code Meaning",
+                "return": true
+              }
+            ]
+          },
+          {
+            "tag": "0040,0009",
+            "vr": "SH",
+            "name": "Scheduled Procedure Step ID",
+            "return": true
+          },
+          {
+            "tag": "0040,0010",
+            "vr": "SH",
+            "name": "Scheduled Station Name",
+            "return": true
+          },
+          {
+            "tag": "0040,0011",
+            "vr": "SH",
+            "name": "Scheduled Procedure Step Location",
+            "return": true
+          },
+          {
+            "tag": "0040,0012",
+            "vr": "LO",
+            "name": "Pre-Medication",
+            "return": true
+          },
+          {
+            "tag": "0040,0020",
+            "vr": "CS",
+            "name": "Scheduled Procedure Step Status",
+            "return": true
+          },
+          {
+            "tag": "0040,0400",
+            "vr": "LT",
+            "name": "Comments on the Scheduled Procedure Step",
+            "return": true
+          }
+        ]
+      },
+      {
+        "tag": "0008,1110",
+        "vr": "SQ",
+        "name": "Referenced Study Sequence",
+        "return": true,
+        "items": [
+          {
+            "tag": "0008,1150",
+            "vr": "UI",
+            "name": "Referenced SOP Class UID",
+            "return": true
+          },
+          {
+            "tag": "0008,1155",
+            "vr": "UI",
+            "name": "Referenced SOP Instance UID",
+            "return": true
+          }
+        ]
+      },
+      {
+        "tag": "0020,000D",
+        "vr": "UI",
+        "name": "Study Instance UID",
+        "return": true
+      },
+      {
+        "tag": "0032,1060",
+        "vr": "LO",
+        "name": "Requested Procedure Description",
+        "return": true
+      },
+      {
+        "tag": "0032,1064",
+        "vr": "SQ",
+        "name": "Requested Procedure Code Sequence",
+        "return": true,
+        "items": [
+          {
+            "tag": "0008,0100",
+            "vr": "SH",
+            "name": "Code Value",
+            "return": true
+          },
+          {
+            "tag": "0008,0102",
+            "vr": "SH",
+            "name": "Coding Scheme Designator",
+            "return": true
+          },
+          {
+            "tag": "0008,0103",
+            "vr": "SH",
+            "name": "Coding Scheme Version",
+            "return": true
+          },
+          {
+            "tag": "0008,0104",
+            "vr": "LO",
+            "name": "Code Meaning",
+            "return": true
+          }
+        ]
+      },
+      {
+        "tag": "0040,1001",
+        "vr": "SH",
+        "name": "Requested Procedure ID",
+        "matching": [
+          "S",
+          "*",
+          "?"
+        ],
+        "return": true,
+        "note": "konfigurierbar"
+      },
+      {
+        "tag": "0040,1003",
+        "vr": "SH",
+        "name": "Requested Procedure Priority",
+        "return": true
+      },
+      {
+        "tag": "0040,1004",
+        "vr": "LO",
+        "name": "Patient Transport Arrangements",
+        "return": true
+      },
+      {
+        "tag": "0040,1400",
+        "vr": "LT",
+        "name": "Requested Procedure Comments",
+        "return": true
+      },
+      {
+        "tag": "0008,0050",
+        "vr": "SH",
+        "name": "Accession Number",
+        "matching": [
+          "S",
+          "*",
+          "?"
+        ],
+        "return": true,
+        "note": "konfigurierbar"
+      },
+      {
+        "tag": "0008,0090",
+        "vr": "PN",
+        "name": "Referring Physician's Name",
+        "return": true
+      },
+      {
+        "tag": "0032,1032",
+        "vr": "PN",
+        "name": "Requesting Physician",
+        "return": true
+      },
+      {
+        "tag": "0032,1033",
+        "vr": "LO",
+        "name": "Requesting Service",
+        "return": true
+      },
+      {
+        "tag": "0040,2400",
+        "vr": "LT",
+        "name": "Imaging Service Request Comments",
+        "return": true
+      },
+      {
+        "tag": "0008,0005",
+        "vr": "CS",
+        "name": "Specific Character Set",
+        "return": true
+      },
+      {
+        "tag": "0008,0032",
+        "vr": "TM",
+        "name": "Acquisition Time",
+        "return": true
+      }
+    ],
+    "_note_keys": "Return Keys werden mit Länge 0 gesendet (Universal Matching). Matching Keys 'configurable' = nur gesetzt, wenn der Benutzer den Wert eingibt (außer den Vorgaben der Standardabfrage). Sequenz-Return-Keys enthalten ein Item mit leeren Unter-Schlüsseln. Der Schlüsselbaum ist Tag für Tag identisch mit dem der Consona-N-Reihe.",
+    "status_codes": [
+      {
+        "status": "Success",
+        "meaning": "Matching is complete - no final identifier is supplied",
+        "code": "0000"
+      },
+      {
+        "status": "Pending",
+        "meaning": "Matches are continuing - current match is supplied",
+        "code": "FF00"
+      },
+      {
+        "status": "Pending",
+        "meaning": "Matches are continuing - warning that one or more optional keys were not supported",
+        "code": "FF01"
+      },
+      {
+        "status": "Cancel",
+        "meaning": "Matching terminated due to cancel request",
+        "code": "FE00"
+      },
+      {
+        "status": "Refused",
+        "meaning": "Out of resources",
+        "code": "A700"
+      },
+      {
+        "status": "Failed",
+        "meaning": "Identifier does not match SOP class",
+        "code": "A900"
+      },
+      {
+        "status": "Failed",
+        "meaning": "Unable to process",
+        "code": "Cxxx"
+      }
+    ],
+    "communication_failure": "Timeout: A-ABORT, Abfrage als fehlgeschlagen markiert; Abbruch durch Gegenstelle/Netz: Abfrage fehlgeschlagen; bei interaktiver Abfrage Meldung an den Benutzer",
+    "device_settings": [
+      "Device, Service name, AE Title and Port",
+      "Timeout",
+      "Maximum retries / Interval Time (ohne Funktion)",
+      "Default Status (Y/N)"
+    ]
+  },
+  "mpps": {
+    "device_role": "SCU",
+    "sop_class": {
+      "name": "Modality Performed Procedure Step",
+      "uid": "1.2.840.10008.3.1.2.3.3"
+    },
+    "proposed_transfer_syntaxes": [
+      {
+        "key": "implicit_vr_le",
+        "name": "Implicit VR Little Endian",
+        "uid": "1.2.840.10008.1.2"
+      },
+      {
+        "key": "explicit_vr_le",
+        "name": "Explicit VR Little Endian",
+        "uid": "1.2.840.10008.1.2.1"
+      },
+      {
+        "key": "explicit_vr_be",
+        "name": "Explicit VR Big Endian",
+        "uid": "1.2.840.10008.1.2.2"
+      }
+    ],
+    "flow": [
+      "Untersuchung starten oder wieder aufnehmen: N-CREATE, Status IN PROGRESS (eigene Association, danach Close)",
+      "Untersuchung beenden: N-SET, Status COMPLETED",
+      "Untersuchung abbrechen: N-SET, Status DISCONTINUED (Abbruchgrund wählbar)"
+    ],
+    "status_codes": [
+      {
+        "status": "Success",
+        "meaning": "Performed procedure step successfully transferred; MPPS UID wird im System gespeichert",
+        "code": "0000"
+      },
+      {
+        "status": "Warning",
+        "meaning": "Association wird per A-ABORT abgebrochen, Übertragung als fehlgeschlagen markiert",
+        "code": "B60x"
+      },
+      {
+        "status": "Failed",
+        "meaning": "Association wird per A-ABORT abgebrochen, MPPS-UID wird nicht gespeichert",
+        "code": "C60x"
+      }
+    ],
+    "behavior": "Bei Fehlern kann der Benutzer im DICOM-Task-Dialog 'Retry' drücken. Hinweis: Dieses Dokument nennt B60x/C60x, das Consona-N-Dokument 0110/0116 – die Quellen weichen ab.",
+    "availability": "nicht bei Z60 Vet / Z6 Vet",
+    "device_settings": [
+      "Device, Service name, AE Title and Port",
+      "Timeout",
+      "Maximum retries (Standard 3)",
+      "Interval Time (ohne Funktion)",
+      "Default Status (Y/N)"
+    ],
+    "opengdt_status": "nicht unterstützt: Die Bridge lehnt den Presentation Context ab. Am Gerät keinen MPPS-Dienst auf die Bridge oder Orthanc einrichten (bei Orthanc ungeprüft, ob es MPPS annimmt)."
+  },
+  "storage_commitment": {
+    "device_role": "SCU (Push Model)",
+    "sop_class": {
+      "name": "Storage Commitment Push Model",
+      "uid": "1.2.840.10008.1.20.1"
+    },
+    "proposed_transfer_syntaxes": [
+      {
+        "key": "implicit_vr_le",
+        "name": "Implicit VR Little Endian",
+        "uid": "1.2.840.10008.1.2"
+      },
+      {
+        "key": "explicit_vr_le",
+        "name": "Explicit VR Little Endian",
+        "uid": "1.2.840.10008.1.2.1"
+      },
+      {
+        "key": "explicit_vr_be",
+        "name": "Explicit VR Big Endian",
+        "uid": "1.2.840.10008.1.2.2"
+      }
+    ],
+    "flow": [
+      "Nach erfolgreichem Storage-Auftrag am Ende einer Untersuchung (Status 'End'; nicht bei aktiver, pausierter oder abgebrochener Untersuchung): Association, N-ACTION (Storage Commitment Request), Close",
+      "Das Ergebnis kommt als N-EVENT-REPORT in einer ANDEREN Association, die der Server zum Gerät aufbaut (Gerät nimmt nur die SCU-Rolle an)"
+    ],
+    "only_when": "Storage Commitment ist dem Storage-Dienst im Dialog zugeordnet ('Associated Storage Service') und der zugeordnete Storage-Auftrag lief; Untersuchung als Einheit; Status 'End'",
+    "device_settings": [
+      "Device, Service name, AE Title and Port",
+      "Timeout",
+      "Maximum retries / Interval Time (ohne Funktion)",
+      "Associated Storage Service",
+      "Default Status (nicht verfügbar)"
+    ],
+    "opengdt_status": "nicht unterstützt: Die Bridge lehnt den Presentation Context ab. Auf dem Gerät 'Associated Storage Service' für Storage Commitment leer lassen."
+  },
+  "query_retrieve": {
+    "device_role": "SCU (als Storage-SCP nur während eines Retrieve)",
+    "contexts": [
+      {
+        "abstract_syntax": "Study Root Query/Retrieve Information Model - FIND",
+        "uid": "1.2.840.10008.5.1.4.1.2.2.1",
+        "transfer_syntaxes": [
+          {
+            "key": "implicit_vr_le",
+            "name": "Implicit VR Little Endian",
+            "uid": "1.2.840.10008.1.2"
+          },
+          {
+            "key": "explicit_vr_le",
+            "name": "Explicit VR Little Endian",
+            "uid": "1.2.840.10008.1.2.1"
+          },
+          {
+            "key": "explicit_vr_be",
+            "name": "Explicit VR Big Endian",
+            "uid": "1.2.840.10008.1.2.2"
+          }
+        ]
+      },
+      {
+        "abstract_syntax": "Study Root Query/Retrieve Information Model - MOVE",
+        "uid": "1.2.840.10008.5.1.4.1.2.2.2",
+        "transfer_syntaxes": [
+          {
+            "key": "implicit_vr_le",
+            "name": "Implicit VR Little Endian",
+            "uid": "1.2.840.10008.1.2"
+          },
+          {
+            "key": "explicit_vr_le",
+            "name": "Explicit VR Little Endian",
+            "uid": "1.2.840.10008.1.2.1"
+          },
+          {
+            "key": "explicit_vr_be",
+            "name": "Explicit VR Big Endian",
+            "uid": "1.2.840.10008.1.2.2"
+          }
+        ]
+      }
+    ],
+    "accepted_storage_contexts_for_retrieve": "US, US Multi-frame, Secondary Capture und Comprehensive SR je mit den acht Transfer Syntaxes aus storage (Tabelle 44); Retrieve nur Modality US oder SR, Ziel nur der lokale Host",
+    "availability": "nicht bei Z60 Vet / Z6 Vet",
+    "note": "Für OpenGDT irrelevant; die Bridge bietet weder FIND noch MOVE an. Nur der Vollständigkeit halber."
+  },
+  "print": {
+    "device_role": "SCU",
+    "transfer_syntax": [
+      {
+        "key": "implicit_vr_le",
+        "name": "Implicit VR Little Endian",
+        "uid": "1.2.840.10008.1.2"
+      },
+      {
+        "key": "explicit_vr_le",
+        "name": "Explicit VR Little Endian",
+        "uid": "1.2.840.10008.1.2.1"
+      },
+      {
+        "key": "explicit_vr_be",
+        "name": "Explicit VR Big Endian",
+        "uid": "1.2.840.10008.1.2.2"
+      }
+    ],
+    "classes": [
+      "Basic Grayscale Print Management Meta",
+      "Basic Color Print Management Meta"
+    ],
+    "note": "Für OpenGDT irrelevant; nur der Vollständigkeit halber."
+  },
+  "media_storage": {
+    "profiles": [
+      "STD-GEN-USB-JPEG",
+      "STD-US-SC-SF&MF-CDR",
+      "STD-US-SC-SF&MF-DVD",
+      "STD-US-SC-SF&MF-DVD-RAM"
+    ],
+    "physical_media": [
+      "CD-R",
+      "CD-RW",
+      "DVD-R",
+      "DVD-RW",
+      "DVD+R",
+      "DVD+RW",
+      "DVD-RAM",
+      "USB"
+    ],
+    "export_transfer_syntax": [
+      {
+        "key": "explicit_vr_le",
+        "name": "Explicit VR Little Endian",
+        "uid": "1.2.840.10008.1.2.1"
+      }
+    ],
+    "note": "Alternativer Weg ohne Netzwerk (USB/Disc-Export als DICOMDIR-Fileset); nicht Teil der Bridge. Tabelle 54 nennt nur Explicit VR Little Endian."
+  },
+  "security": {
+    "association_level": "keine Prüfung; jeder Calling AE-Titel und jede IP-Adresse darf eine Association öffnen",
+    "tls": "keine Sicherheitsprofile (Abschnitt 7)",
+    "opengdt_status": "Kein TLS am Gerät nötig oder möglich."
+  },
+  "structured_reports": {
+    "templates": [
+      "OB-GYN Ultrasound Procedure Report",
+      "Echocardiography Procedure Report",
+      "Vascular Ultrasound Report"
+    ],
+    "availability": "nicht bei Z60 Vet / Z6 Vet",
+    "note": "Das Gerät kann SR (Comprehensive SR) mitsenden; die Bridge archiviert sie, wandelt sie aber nicht um."
+  },
+  "image_attributes": {
+    "legend": {
+      "MWL": "Wert aus Modality Worklist",
+      "USER": "Benutzereingabe",
+      "AUTO": "automatisch vom Gerät",
+      "CONFIG": "Geräte-Konfiguration"
+    },
+    "columns": [
+      "tag",
+      "vr",
+      "type",
+      "name",
+      "source"
+    ],
+    "modules": {
+      "Patient (M)": [
+        [
+          "0010,0010",
+          "PN",
+          "2",
+          "Patient's Name",
+          "MWL/USER"
+        ],
+        [
+          "0010,0020",
+          "LO",
+          "2",
+          "Patient ID",
+          "MWL/USER"
+        ],
+        [
+          "0010,0030",
+          "DA",
+          "2",
+          "Patient's Birth Date",
+          "MWL/USER, default is set to zero length"
+        ],
+        [
+          "0010,0040",
+          "CS",
+          "2",
+          "Patient's Sex",
+          "MWL/USER, default is set to zero length"
+        ],
+        [
+          "0010,1000",
+          "LO",
+          "3",
+          "Other Patient IDs",
+          "MWL"
+        ],
+        [
+          "0010,2160",
+          "SH",
+          "3",
+          "Ethnic Group",
+          "MWL"
+        ],
+        [
+          "0010,4000",
+          "LT",
+          "3",
+          "Patient Comments",
+          "MWL/USER"
+        ]
+      ],
+      "General Study (M)": [
+        [
+          "0008,0020",
+          "DA",
+          "2",
+          "Study Date",
+          "AUTO"
+        ],
+        [
+          "0008,0030",
+          "TM",
+          "2",
+          "Study Time",
+          "AUTO"
+        ],
+        [
+          "0008,0050",
+          "SH",
+          "2",
+          "Accession Number",
+          "MWL/USER, default is set to zero length"
+        ],
+        [
+          "0008,0090",
+          "PN",
+          "2",
+          "Referring Physician's Name",
+          "MWL/USER, default is set to zero length"
+        ],
+        [
+          "0008,1030",
+          "LO",
+          "3",
+          "Study Description",
+          "MWL/USER, default is set to zero length"
+        ],
+        [
+          "0008,1032",
+          "SQ",
+          "3",
+          "Procedure Code Sequence",
+          "MWL"
+        ],
+        [
+          "0020,000D",
+          "UI",
+          "1",
+          "Study Instance UID",
+          "MWL/AUTO"
+        ],
+        [
+          "0020,0010",
+          "SH",
+          "2",
+          "Study ID",
+          "AUTO"
+        ]
+      ],
+      "Patient Study (U)": [
+        [
+          "0008,1080",
+          "LO",
+          "3",
+          "Admitting Diagnoses Description",
+          "MWL"
+        ],
+        [
+          "0010,1010",
+          "AS",
+          "3",
+          "Patient's Age",
+          "MWL/USER, default is set to zero length If the user set Patient Birth Date, it will be calculated automatically."
+        ],
+        [
+          "0010,1020",
+          "DS",
+          "3",
+          "Patient's Size",
+          "MWL/USER, default is set to zero length"
+        ],
+        [
+          "0010,1030",
+          "DS",
+          "3",
+          "Patient's Weight",
+          "MWL/USER, default is set to zero length"
+        ],
+        [
+          "0010,21B0",
+          "LT",
+          "3",
+          "Additional Patient History",
+          "MWL"
+        ]
+      ],
+      "General Series (M)": [
+        [
+          "0008,0021",
+          "DA",
+          "3",
+          "Series Date",
+          "AUTO"
+        ],
+        [
+          "0008,0031",
+          "TM",
+          "3",
+          "Series Time",
+          "AUTO"
+        ],
+        [
+          "0008,0060",
+          "CS",
+          "1",
+          "Modality",
+          "“US”"
+        ],
+        [
+          "0008,103E",
+          "LO",
+          "3",
+          "Series Description",
+          "MWL"
+        ],
+        [
+          "0008,1050",
+          "PN",
+          "3",
+          "Performing Physician's Name",
+          "MWL/USER, default is set to zero length"
+        ],
+        [
+          "0008,1070",
+          "PN",
+          "3",
+          "Operators' Name",
+          "MWL/USER, default is set to zero length"
+        ],
+        [
+          "0018,1030",
+          "LO",
+          "3",
+          "Protocol Name",
+          "AUTO – set to ExamType"
+        ],
+        [
+          "0018,5100",
+          "CS",
+          "2C",
+          "Patient Position",
+          "Set to zero length"
+        ],
+        [
+          "0020,000E",
+          "UI",
+          "1",
+          "Series Instance UID",
+          "AUTO"
+        ],
+        [
+          "0020,0011",
+          "IS",
+          "2",
+          "Series Number",
+          "AUTO"
+        ],
+        [
+          "0020,0060",
+          "CS",
+          "2C",
+          "Laterality",
+          "Set to zero length"
+        ],
+        [
+          "0040,0244",
+          "DA",
+          "3",
+          "Performed Procedure Step Start Date",
+          "MPPS"
+        ],
+        [
+          "0040,0245",
+          "TM",
+          "3",
+          "Performed Procedure Step Start Time",
+          "MPPS"
+        ],
+        [
+          "0040,0254",
+          "LO",
+          "3",
+          "Performed Procedure Step Description",
+          "MPPS"
+        ],
+        [
+          "0040,0260",
+          "SQ",
+          "3",
+          "Performed Protocol Code Sequence",
+          "MPPS"
+        ]
+      ],
+      "General Equipment (O)": [
+        [
+          "0008,0070",
+          "LO",
+          "2",
+          "Manufacturer",
+          "MINDRAY"
+        ],
+        [
+          "0008,0080",
+          "LO",
+          "3",
+          "Institution Name",
+          "CONFIG"
+        ],
+        [
+          "0008,1010",
+          "SH",
+          "3",
+          "Station Name",
+          "AUTO"
+        ],
+        [
+          "0008,1040",
+          "LO",
+          "3",
+          "Institutional Department Name",
+          "CONFIG"
+        ],
+        [
+          "0008,1090",
+          "LO",
+          "3",
+          "Manufacturer's Model Name",
+          "Z60"
+        ],
+        [
+          "0018,1000",
+          "LO",
+          "3",
+          "Device Serial Number",
+          "The Ethernet card Mac Address"
+        ],
+        [
+          "0018,1020",
+          "LO",
+          "3",
+          "Software Version(s)",
+          "AUTO"
+        ]
+      ],
+      "General Image (M)": [
+        [
+          "0008,0023",
+          "DA",
+          "2C",
+          "Content Date",
+          "AUTO"
+        ],
+        [
+          "0008,0033",
+          "TM",
+          "2C",
+          "Content Time",
+          "AUTO"
+        ],
+        [
+          "0008,2111",
+          "ST",
+          "3",
+          "Derivation Description",
+          "CONFIG, default is set to zero length"
+        ],
+        [
+          "0020,0013",
+          "IS",
+          "2",
+          "Instance Number",
+          "AUTO"
+        ],
+        [
+          "0020,0020",
+          "CS",
+          "2C",
+          "Patient Orientation",
+          "Set to zero length"
+        ],
+        [
+          "0020,4000",
+          "LT",
+          "3",
+          "Image Comments",
+          "Set to zero length"
+        ],
+        [
+          "0028,0301",
+          "CS",
+          "3",
+          "Burned In Annotation",
+          "YES"
+        ]
+      ],
+      "US Image (M)": [
+        [
+          "0008,0008",
+          "CS",
+          "2",
+          "Image Type",
+          "ORIGINAL/PRIMARY"
+        ],
+        [
+          "0018,5010",
+          "LO",
+          "3",
+          "Transducer Data",
+          "USER"
+        ],
+        [
+          "0018,5020",
+          "LO",
+          "3",
+          "Processing Function",
+          "USER"
+        ],
+        [
+          "0028,0002",
+          "US",
+          "1",
+          "Samples per Pixel",
+          "1 or 3"
+        ],
+        [
+          "0028,0004",
+          "CS",
+          "1",
+          "Photometric Interpretation",
+          "RGB, for color images; MONOCHROME2, if the image is grayscale; YBR_FULL_422, if the image is sent using JPEG. RGB, if the image is sent using JPEG Lossless. YBR_FULL,if the image is sent using RLE Lossless. YBR_ICT,if the image is sent using JPEG 2000 Image Compression. YBR_RCT,if the image is sent using JPEG 2000 Image Compression (Lossless Only)"
+        ],
+        [
+          "0028,0006",
+          "US",
+          "1C",
+          "Planar Configuration",
+          "1, if the image is sent using RLE Lossless 0，otherwise."
+        ],
+        [
+          "0028,0009",
+          "AT",
+          "1C",
+          "Frame Increment Pointer",
+          "Frame Time"
+        ],
+        [
+          "0028,0014",
+          "US",
+          "3",
+          "Ultrasound Color Data Present",
+          "0 or 1"
+        ],
+        [
+          "0028,0100",
+          "US",
+          "1",
+          "Bits Allocated",
+          "0x0008"
+        ],
+        [
+          "0028,0101",
+          "US",
+          "1",
+          "Bits Stored",
+          "0x0008"
+        ],
+        [
+          "0028,0102",
+          "US",
+          "1",
+          "High Bit",
+          "0x0007"
+        ],
+        [
+          "0028,0103",
+          "US",
+          "1",
+          "Pixel Representation",
+          "0x0000"
+        ],
+        [
+          "0028,2110",
+          "CS",
+          "1C",
+          "Lossy Image Compression",
+          "Not used if image is uncompressed; support JPEG baseline, JPEG Lossless,RLE Lossless,JPEG 2000 Image Compression,JPEG 2000 Image Compression (Lossless Only) process1 and set it to “01”"
+        ]
+      ],
+      "Image Pixel (M)": [
+        [
+          "0028,0010",
+          "US",
+          "1",
+          "Rows",
+          "AUTO"
+        ],
+        [
+          "0028,0011",
+          "US",
+          "1",
+          "Columns",
+          "AUTO"
+        ],
+        [
+          "0028,0034",
+          "IS",
+          "1c",
+          "Pixel Aspect Ratio",
+          "Set to zero length"
+        ],
+        [
+          "7FE0,0010",
+          "OW",
+          "1",
+          "Pixel Data",
+          ""
+        ]
+      ],
+      "SOP Common (M)": [
+        [
+          "0008,0005",
+          "CS",
+          "1C",
+          "Specific Character Set",
+          "AUTO"
+        ],
+        [
+          "0008,0012",
+          "DA",
+          "3",
+          "Instance Creation Date",
+          "AUTO"
+        ],
+        [
+          "0008,0013",
+          "TM",
+          "3",
+          "Instance Creation Time",
+          "AUTO"
+        ],
+        [
+          "0008,0016",
+          "UI",
+          "1C",
+          "SOP Class UID",
+          "AUTO"
+        ],
+        [
+          "0008,0018",
+          "UI",
+          "1C",
+          "SOP Instance UID",
+          "AUTO"
+        ]
+      ],
+      "US Region Calibration (U)": [
+        [
+          "0018,6011",
+          "SQ",
+          "1",
+          "Sequence of Ultrasound Regions",
+          ""
+        ],
+        [
+          "0018,6012",
+          "US",
+          "1",
+          "> Region Spatial Format",
+          "Set by the system"
+        ],
+        [
+          "0018,6014",
+          "US",
+          "1",
+          "> Region Data Type",
+          "Set by the system"
+        ],
+        [
+          "0018,6016",
+          "UL",
+          "1",
+          "> Region Flags",
+          "Set by the system"
+        ],
+        [
+          "0018,6018",
+          "UL",
+          "1",
+          "> Region Location Min X0",
+          "Set by the system"
+        ],
+        [
+          "0018,601A",
+          "UL",
+          "1",
+          "> Region Location Min Y0",
+          "Set by the system"
+        ],
+        [
+          "0018,601C",
+          "UL",
+          "1",
+          "> Region Location Max X1",
+          "Set by the system"
+        ],
+        [
+          "0018,601E",
+          "UL",
+          "1",
+          "> Region Location Max Y1",
+          "Set by the system"
+        ],
+        [
+          "0018,6024",
+          "US",
+          "1",
+          "> Physical Units X Direction",
+          "Set by the system"
+        ],
+        [
+          "0018,6026",
+          "US",
+          "1",
+          "> Physical Units Y Direction",
+          "Set by the system"
+        ],
+        [
+          "0018,602C",
+          "FD",
+          "1",
+          "> Physical Delta X",
+          "Set by the system"
+        ],
+        [
+          "0018,602E",
+          "FD",
+          "1",
+          "> Physical Delta Y",
+          "Set by the system"
+        ]
+      ],
+      "Cine (M)": [
+        [
+          "0008,2142",
+          "IS",
+          "3",
+          "Start Trim",
+          "Set by the system"
+        ],
+        [
+          "0008,2143",
+          "IS",
+          "3",
+          "Stop Trim",
+          "Set by the system"
+        ],
+        [
+          "0008,2144",
+          "IS",
+          "3",
+          "Recommended Display Frame Rate",
+          "Set by the system"
+        ],
+        [
+          "0018,0040",
+          "IS",
+          "3",
+          "Cine Rate",
+          "CONFIG"
+        ],
+        [
+          "0018,0072",
+          "DS",
+          "3",
+          "Effective Duration",
+          "Set by the system"
+        ],
+        [
+          "0018,1063",
+          "DS",
+          "1C",
+          "Frame Time",
+          "Set by the system"
+        ],
+        [
+          "0018,1065",
+          "DS",
+          "1C",
+          "Frame Time Vector",
+          "Set by the system"
+        ],
+        [
+          "0018,1066",
+          "DS",
+          "3",
+          "Frame Delay",
+          "Set by the system"
+        ],
+        [
+          "0018,1242",
+          "IS",
+          "3",
+          "Actual Frame Duration",
+          "Set by the system"
+        ],
+        [
+          "0018,1244",
+          "US",
+          "3",
+          "Preferred Playback Sequencing",
+          "Set by the system"
+        ]
+      ],
+      "Multi-Frame (M)": [
+        [
+          "0028,0008",
+          "IS",
+          "1",
+          "Number of Frames",
+          "AUTO"
+        ],
+        [
+          "0028,0009",
+          "AT",
+          "1",
+          "Frame Increment Pointer",
+          "0018 1063 = Frame Time"
+        ]
+      ],
+      "SC Equipment (M)": [
+        [
+          "0008,0060",
+          "CS",
+          "3",
+          "Modality",
+          "US"
+        ],
+        [
+          "0008,0064",
+          "CS",
+          "1",
+          "Conversion Type",
+          "WSD"
+        ],
+        [
+          "0018,1010",
+          "LO",
+          "3",
+          "Secondary Capture Device ID",
+          "Z60"
+        ],
+        [
+          "0018,1016",
+          "LO",
+          "3",
+          "Secondary Capture Device Manufacturer",
+          "MINDRAY"
+        ],
+        [
+          "0018,1018",
+          "LO",
+          "3",
+          "Secondary Capture Device Manufacturer's Model Name",
+          "Z60"
+        ],
+        [
+          "0018,1019",
+          "LO",
+          "3",
+          "Secondary Capture Device Software Version(s)",
+          "AUTO"
+        ]
+      ],
+      "SC Image (M)": [
+        [
+          "0018,1012",
+          "DA",
+          "3",
+          "Date of Secondary Capture",
+          "AUTO"
+        ],
+        [
+          "0018,1014",
+          "TM",
+          "3",
+          "Time of Secondary Capture",
+          "AUTO"
+        ]
+      ]
+    },
+    "note": "Tabelle 14 des Dokuments; Namen mit '>' sind Unterattribute einer Sequenz (Tiefe = Anzahl '>'). Modul 'US Image' enthält die Photometric-Interpretation-Regeln, siehe auch storage.photometric_interpretation_by_transfer_syntax."
+  },
+  "configurable_parameters": {
+    "local": [
+      "AE Title",
+      "Port",
+      "PDU"
+    ],
+    "server": [
+      "Device",
+      "IP address"
+    ],
+    "per_service": {
+      "storage": [
+        "Device, Service name, AE Title and Port",
+        "Timeout",
+        "Maximum retries (Standard 3)",
+        "Interval Time (ohne Funktion)",
+        "Compression Mode, Compression Ratio",
+        "Color Mode (Color, Mixed, Gray)",
+        "Allow Multiframe",
+        "Max Framerate (25, 30, 35, full oder Wert)",
+        "SR Storage Option (Attach SR when Store Images / Only Store SR / Not Store SR)",
+        "Default Service Status (Y/N)"
+      ],
+      "worklist": [
+        "Device, Service name, AE Title and Port",
+        "Timeout",
+        "Maximum retries / Interval Time (ohne Funktion)",
+        "Default Status (Y/N)"
+      ],
+      "mpps": [
+        "Device, Service name, AE Title and Port",
+        "Timeout",
+        "Maximum retries (Standard 3)",
+        "Interval Time (ohne Funktion)",
+        "Default Status (Y/N)"
+      ],
+      "storage_commitment": [
+        "Device, Service name, AE Title and Port",
+        "Timeout",
+        "Maximum retries / Interval Time (ohne Funktion)",
+        "Associated Storage Service",
+        "Default Status (nicht verfügbar)"
+      ],
+      "query_retrieve": [
+        "Device, Service name, AE Title and Port",
+        "Timeout",
+        "Maximum retries / Interval Time (ohne Funktion)",
+        "Default Status (Y/N)"
+      ],
+      "print": [
+        "Device, Service name, AE Title and Port",
+        "Timeout",
+        "Maximum retries (Standard 3)",
+        "Media Type",
+        "Film Size",
+        "Copies",
+        "Max/Min Density",
+        "Settings (RGB, MONOCHROME2)",
+        "Display Format",
+        "Destination",
+        "Film Orientation",
+        "Priority",
+        "Configuration Info",
+        "Magnification Type",
+        "Trim",
+        "Default Status (Y/N)"
+      ]
+    }
+  }
+}
