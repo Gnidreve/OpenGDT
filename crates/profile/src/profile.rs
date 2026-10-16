@@ -312,6 +312,14 @@ impl Profile {
         {
             e.push("meta.capture.verified_against_device: fehlt (true/false erwartet)".into());
         }
+        // optional; von devices/check_sources.py gesetzt, wenn sich das Quell-PDF geändert hat
+        if let Some(v) = self.root.at("meta.capture.source_changed_at") {
+            if !v.as_str().is_some_and(is_timestamp) {
+                e.push(
+                    "meta.capture.source_changed_at: muss YYYY-MM-DDTHH:MM:SSZ (UTC) sein".into(),
+                );
+            }
+        }
         if self.s("meta.capture.review_status") == "reviewed" {
             for p in ["meta.capture.reviewed_by", "meta.capture.reviewed_at"] {
                 if self
@@ -544,6 +552,19 @@ mod tests {
             .transfer_syntaxes
             .iter()
             .any(|t| t.uid == "1.2.840.10008.1.2.4.100"));
+    }
+
+    #[test]
+    fn optional_source_changed_at_must_be_a_timestamp() {
+        let ok = text().replace(
+            "\"review_status\": \"unreviewed\",",
+            "\"review_status\": \"unreviewed\",\n \"source_changed_at\": \"2026-10-16T08:00:00Z\",",
+        );
+        assert!(Profile::parse(&ok).is_ok());
+        expect_error(
+            ok.replace("2026-10-16T08:00:00Z", "gestern"),
+            "source_changed_at",
+        );
     }
 
     #[test]

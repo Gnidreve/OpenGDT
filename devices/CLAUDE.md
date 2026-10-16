@@ -12,3 +12,8 @@
   ist entweder die Abschrift fehlerhaft oder der Code passt nicht mehr zum Gerät – beides sind echte Befunde.
 * Die Bridge liest Profile **nicht zur Laufzeit** (gerätegenerisch, kein JSON im Produktivcode).
 * Neues Gerät: Ordner anlegen, Tabelle in `devices/README.md` ergänzen, Testdatei ist nicht nötig: `device_profiles.rs` prüft jedes `devices/*/dicom-conformance.json`.
+* `check_sources.py` ist ein Dev-Werkzeug außerhalb von Cargo (Regel 2 erlaubt das): Es liest `meta.source.url` und `file_sha256`, lädt das PDF mit
+  Browser-`User-Agent` (die Mindray-CDN liefert sonst 403) und ändert bei `--update` nur sha256/Größe/Seiten, `review_status`, `reviewed_*` und
+  `source_changed_at` per Textersetzung. **Nie `extracted_at` automatisch setzen** (würde eine nicht erfolgte Abschrift vortäuschen) und die Dateien nie
+  mit `json.dump` neu schreiben (riesiger Diff). Tests laufen mit lokalem HTTP-Server (`python3 -I devices/test_check_sources.py`), nicht gegen Mindray.
+* Vor „fertig“ bei Änderungen am Skript: dieser Test plus `cargo test -p opengdt-profile` (das Schema kennt `source_changed_at`).
