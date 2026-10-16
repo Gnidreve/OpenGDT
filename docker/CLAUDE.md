@@ -33,6 +33,7 @@
   weil die Abhängigkeit `postgresql` sonst einen zweiten Server installiert. Das Bootstrap-Skript findet Module relativ zu sich selbst und die
   Konfiguration wird per `sed` geändert → es läuft in einer Kopie (`/tmp/gnumed`). Nicht `gm-bootstrap_server` verwenden (Socket, `su postgres`).
   Die Testpatienten dürfen **nicht** entfernt werden (`bootstrap-test_data.conf` ist Voraussetzung der Updates, geprüft: sonst Abbruch bei v11).
+  `gnumed-db` bekommt die Startoptionen `log_connections`, `log_disconnections`, `track_commit_timestamp` per `command:` (Nutzerwunsch, GNUmed-Hinweis); `track_commit_timestamp` braucht einen Neustart des Servers, bei `command:` kein Problem. Nicht in `postgresql.conf` im Volume ablegen.
   Vollständig = Datenbankkommentar `opengdt-bootstrap-fertig`; Staging-DBs `gnumed_v2…v21` werden danach gelöscht. Im offiziellen Postgres-Image ist
   `127.0.0.1` *im* Container `trust` – Passwortprüfungen deshalb über das Stack-Netzwerk testen (`pgc` in `smoke.sh`), nie per `exec psql -h 127.0.0.1`.
   Passwörter: Postgres-Admin und `gm-dbo` erzeugt (Volume `gnumed-secrets`); `any-doc/any-doc` bleibt Paketvorgabe (nur auf `127.0.0.1` erreichbar).

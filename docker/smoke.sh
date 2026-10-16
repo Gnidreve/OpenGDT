@@ -11,6 +11,7 @@ check "bridge läuft"                     "[ \"\$(docker compose ps --status run
 check "gnumed-db läuft"                  "[ \"\$(docker compose ps --status running -q gnumed-db | wc -l)\" = 1 ]"
 echo "GNUmed-Datenbank:"
 check "Bootstrap abgeschlossen (gnumed_v22 fertig)" "docker compose exec -T gnumed-db psql -U postgres -At -c \"select shobj_description(oid,'pg_database') from pg_database where datname='gnumed_v22'\" | grep -q opengdt-bootstrap-fertig"
+check "Postgres-Einstellungen für den GNUmed-Client (log_connections, log_disconnections, track_commit_timestamp)" "[ \"\$(docker compose exec -T gnumed-db psql -U postgres -At -c \"select count(*) from pg_settings where (name,setting) in (('log_connections','on'),('log_disconnections','on'),('track_commit_timestamp','on'))\")\" = 3 ]"
 check "Postgres nur auf 127.0.0.1:5432"  "docker compose port gnumed-db 5432 | grep -q '^127.0.0.1:5432'"
 pgc() { docker compose run --rm --no-deps -T -e PGHOST=gnumed-db -e PGPASSWORD="$1" --entrypoint psql gnumed-bootstrap -h gnumed-db -U "$2" -d gnumed_v22 -At -c 'select 1'; }
 check "Anmeldung any-doc über das Stack-Netzwerk" "pgc any-doc any-doc"

@@ -81,6 +81,8 @@ services:
   # darunter legt beim ersten Start das Schema an (einige Minuten) und tut danach nichts mehr. Zurücksetzen: docker compose down -v
   gnumed-db:
     image: ${GNUMED_DB_IMAGE:-postgres:15}               # nicht 16: der GNUmed-22-Bootstrap läuft dort nicht (geprüft)
+    # Einstellungen, die der GNUmed-Client am Datenbankserver erwartet (sonst erscheint ein Hinweis beim Start des Clients)
+    command: ["postgres", "-c", "log_connections=on", "-c", "log_disconnections=on", "-c", "track_commit_timestamp=on"]
     restart: unless-stopped
     depends_on:
       init:

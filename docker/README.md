@@ -136,6 +136,7 @@ GDT-Rückmeldung, AVI-Export; die Abfrage des DP-50 aus dem Conformance Statemen
   `localhost:5432`. Dienst `gnumed-bootstrap`: legt beim **ersten Start** die Datenbank `gnumed_v22` an und tut danach nichts mehr
   (Meldung „nichts zu tun“). Der erste Aufbau dauert mehrere Minuten (hier auf x86_64 gut 4; auf dem Raspberry Pi knapp 20 Minuten, vom Nutzer gemessen), weil das
   Schema von Version 2 bis 22 aufgebaut wird. Der Infoblock erscheint deshalb beim ersten Start erst danach; der Fortschritt steht im Log.
+* Der Server startet mit `log_connections=on`, `log_disconnections=on` und `track_commit_timestamp=on` (Startoptionen in der Compose-Datei); diese Werte erwartet der GNUmed-Client, sonst zeigt er beim Start einen Hinweis. Ob der Hinweis damit verschwindet, ist im Client selbst noch nicht geprüft.
 * Die Daten liegen im Volume `gnumed-db` und überleben `docker compose down`; `down -v` löscht sie. Ein abgebrochener Aufbau wird beim
   nächsten Start automatisch neu gemacht (Marker `opengdt-bootstrap-fertig` am Datenbankkommentar).
 * Client und Datenbank müssen zusammenpassen: Datenbank **v22** gehört zum GNUmed-Client **1.8.x**. Welche Version auf dem Pi installiert wird,
